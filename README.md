@@ -60,6 +60,22 @@ Note the model name in the status bar, the whole agent loop runs on the V100:
 
 These play at real speed (no speed-up), only dead air between turns is trimmed.
 
+And OpenClaw driving the same card through Telegram — it reports the local model, and even runs
+a shell command (`hostname`) to answer where it's running:
+
+![OpenClaw on Telegram, backed by the V100](assets/screenshots/openclaw-telegram.png)
+
+The gateway startup and the inbound-message → local-inference flow, from the logs:
+
+```
+[gateway] agent model: local/gemma4 (thinking=off, fast=off)
+[telegram] [default] starting provider (@claw_v100_local_bot)
+[gateway] ready
+[gateway/channels/telegram/inbound] Inbound message -> @claw_v100_local_bot (direct)
+# Gemma 4 on the V100 handles the turn:
+slot print_timing: prompt eval 23052 tokens @ 1931 tok/s | eval 201 tokens @ 52 tok/s
+```
+
 ## How fast is it, honestly
 
 Token generation lands around 28-37 tok/s on Qwen3 and ~47-57 tok/s on Gemma 4 depending on

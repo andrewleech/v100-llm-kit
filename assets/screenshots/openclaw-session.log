@@ -1,0 +1,17 @@
+# OpenClaw gateway — startup (Telegram channel + local Gemma 4 on the V100)
+[gateway] loading configuration…
+[gateway] agent model: local/gemma4 (thinking=off, fast=off)
+[gateway] http server listening (8 plugins: browser, canvas, device-pair, file-transfer, memory-core, phone-control, talk-voice, telegram; 3.8s)
+[telegram] [default] starting provider (@claw_v100_local_bot)
+[telegram] [diag] isolated polling ingress started spool=~/.openclaw/telegram/ingress-spool-default
+[gateway] ready
+
+# Inbound DM -> gateway -> local inference -> reply (one turn)
+[gateway/channels/telegram/inbound] Inbound message telegram:708079850 -> @claw_v100_local_bot (direct, 5 chars)
+
+# Gemma 4 on the V100 handling that turn (server-side timing):
+#   ~23k-token agent context (system prompt + 8 plugins' tools + message) processed,
+#   then the reply generated. No thinking, no panic-compaction.
+slot print_timing: task 201 | prompt eval time = 11934.73 ms / 23052 tokens (0.52 ms/token, 1931.51 tok/s)
+slot print_timing: task 201 |        eval time =  3868.52 ms /   201 tokens (19.25 ms/token,   51.96 tok/s)
+slot      release: task 201 | stop processing: n_tokens = 23252, truncated = 0

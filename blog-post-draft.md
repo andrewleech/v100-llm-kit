@@ -118,9 +118,28 @@ variants). Still slower than a frontier API, but genuinely usable and nothing le
 
 OpenClaw's the wildly popular personal-agent thing that runs through your messaging apps. It
 takes an OpenAI-compatible backend, so pointing it at the V100 is just a baseURL and any
-non-empty API key.
+non-empty API key. I wired it to Telegram and the local Gemma 4, and it just works, it reports
+the local model and will even run a shell command to answer a question about the box:
 
-<!-- DEMO: gif/screen recording — OpenClaw running against the local card -->
+![OpenClaw on Telegram, backed by the V100](_assets/v100-kit/openclaw-telegram.png)
+
+Under the hood it's the same story as Claude Code, the gateway routes the Telegram message to
+the V100 and streams back the reply:
+
+```
+[gateway] agent model: local/gemma4 (thinking=off, fast=off)
+[telegram] [default] starting provider (@claw_v100_local_bot)
+[gateway] ready
+[gateway/channels/telegram/inbound] Inbound message -> @claw_v100_local_bot (direct)
+# Gemma 4 on the V100 handles the turn:
+slot print_timing: prompt eval 23052 tokens @ 1931 tok/s | eval 201 tokens @ 52 tok/s
+```
+
+A couple of gotchas worth knowing if you try this. OpenClaw wants Node 22.19+, and it loads a
+big pile of tools by default (~22k tokens of context before you've said anything), so you have
+to tell it the model's context window is comfortably bigger than that or it panic-compacts a
+fresh conversation and silently drops the reply. Once that's sorted it's solid. Full setup in
+the kit docs.
 
 ## What's next: dual V100 with NVLink
 
