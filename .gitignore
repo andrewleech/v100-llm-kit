@@ -1,0 +1,15 @@
+# Model weights — pulled by download-models, never committed
+models/
+*.gguf
+
+# Extracted release binaries
+bin/
+*.exe
+*.dll
+*.so
+*.so.*
+
+# Python / editor cruft
+__pycache__/
+*.pyc
+.DS_Store
