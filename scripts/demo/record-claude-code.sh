@@ -25,7 +25,10 @@ CAST="$OUT_DIR/claude-${SCENARIO}.cast"
 
 SCENARIO_FILE="$HERE/scenarios/${SCENARIO}.md"
 [ -f "$SCENARIO_FILE" ] || { echo "no scenario file: $SCENARIO_FILE" >&2; exit 1; }
-PROMPT="$(grep -v '^#' "$SCENARIO_FILE" | grep -v '^[[:space:]]*$' | head -1)"
+# Each non-comment, non-blank line is one turn (prompt). Multi-line scenarios drive a
+# multi-turn session: type a prompt, wait for the reply, then the next.
+mapfile -t PROMPTS < <(grep -v '^#' "$SCENARIO_FILE" | grep -v '^[[:space:]]*$')
+[ "${#PROMPTS[@]}" -gt 0 ] || { echo "no prompts in $SCENARIO_FILE" >&2; exit 1; }
 
 : "${ANTHROPIC_BASE_URL:?set ANTHROPIC_BASE_URL to the local server first}"
 MODEL_NAME="${ANTHROPIC_MODEL:-local}"
@@ -62,26 +65,26 @@ asciinema rec --overwrite --cols "$COLS" --rows "$ROWS" \
 REC_PID=$!
 sleep 2
 
-# Type the prompt, then submit.
-tmux send-keys -t "$SESSION" -l "$PROMPT"
-sleep 1.5
-tmux send-keys -t "$SESSION" Enter
+# Each completed turn leaves a "✻ <verb> for <N>s" summary. Counting those (including
+# scrollback) tells us how many turns have finished, which is robust across multiple turns.
+done_count() { tmux capture-pane -t "$SESSION" -p -S -400 2>/dev/null | grep -cE "for [0-9]+s\b"; }
 
-# Poll the pane: wait until we've seen the "working" indicator appear and then disappear,
-# i.e. generation started and finished. Falls back to MAX_WAIT.
-echo "waiting for reply to finish (max ${MAX_WAIT}s)..." >&2
-# While generating, Claude Code shows a gerund spinner ("✻ Osmosing…"); when done it shows a
-# past-tense summary line ("✻ Worked for 12s"). The "for <N>s" summary is the clean done signal.
-waited=0
-sleep 4   # let generation start before we start checking for the done summary
-while [ "$waited" -lt "$MAX_WAIT" ]; do
-  pane="$(tmux capture-pane -t "$SESSION" -p 2>/dev/null || true)"
-  if echo "$pane" | grep -qiE "for [0-9]+s\b"; then
-    break   # "✻ Worked for Ns" → reply finished
-  fi
-  sleep 2; waited=$((waited+2))
+turn=0
+for PROMPT in "${PROMPTS[@]}"; do
+  turn=$((turn+1))
+  tmux send-keys -t "$SESSION" -l "$PROMPT"
+  sleep 1.2
+  tmux send-keys -t "$SESSION" Enter
+  echo "turn $turn/${#PROMPTS[@]}: waiting for reply (max ${MAX_WAIT}s)..." >&2
+  waited=0
+  sleep 3   # let generation start
+  while [ "$waited" -lt "$MAX_WAIT" ]; do
+    [ "$(done_count)" -ge "$turn" ] && break   # this turn's summary has appeared
+    sleep 2; waited=$((waited+2))
+  done
+  sleep 2.5   # let the answer settle and read on screen before the next prompt
 done
-sleep 3   # let the final answer settle fully on screen
+sleep 1
 
 # End the recording ON the answer: kill the session so the read-only attach exits. No /exit,
 # which would clear the view to a "Resume this session" screen and ruin the final frame.

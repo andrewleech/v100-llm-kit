@@ -53,10 +53,11 @@ Anthropic's:
 ![Gemma 4 reporting its identity](assets/gifs/chat-identity-gemma.gif)
 ![Qwen3 reporting its identity](assets/gifs/chat-identity-qwen.gif)
 
-Claude Code pointed at the local server, doing real work (listing a project and summarising it).
-Note the model name in the status bar, the whole agent loop runs on the V100:
+Claude Code pointed at the local server: two quick chat answers (from the project's CLAUDE.md,
+~1-4s each) then a file read showing real code. Note the model name in the status bar — the
+whole agent loop runs on the V100:
 
-![Claude Code on the local model](assets/gifs/claude-project-query.gif)
+![Claude Code on the local model](assets/gifs/claude-project-tour.gif)
 
 These play at real speed (no speed-up), only dead air between turns is trimmed.
 

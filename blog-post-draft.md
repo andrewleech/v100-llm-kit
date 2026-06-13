@@ -95,10 +95,11 @@ Claude Code status bar.
 ## Claude Code, fully local
 
 Point Claude Code at the local server and it just works, the server speaks the Anthropic
-Messages API so there's no shim needed. Here it is listing a project and summarising it, the
-model name's in the status bar and the whole agent loop, tool call and all, runs on the V100:
+Messages API so there's no shim needed. Here it is on a small project: a couple of quick chat
+answers (straight from the project's CLAUDE.md, so no tool call needed) then a file read showing
+real code, model name in the status bar, the whole agent loop running on the V100:
 
-![Claude Code doing real work on the local model](_assets/v100-kit/claude-project-query.gif)
+![Claude Code doing real work on the local model](_assets/v100-kit/claude-project-tour.gif)
 
 That's real speed, no speed-up, only the dead air trimmed. The thing that surprised me here was
 how much the prompt cache matters. Claude Code sends a big system prompt (~24k tokens) and the
