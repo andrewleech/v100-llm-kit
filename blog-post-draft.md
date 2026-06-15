@@ -142,13 +142,52 @@ to tell it the model's context window is comfortably bigger than that or it pani
 fresh conversation and silently drops the reply. Once that's sorted it's solid. Full setup in
 the kit docs.
 
-## What's next: dual V100 with NVLink
+## Dual V100 with NVLink, for multi-agent
 
-<!-- PLACEHOLDER: dual-V100 NVLink PCIe card -->
+<!-- PHOTO: the dual-V100 NVLink card -->
 
-I'm building a PCIe card that mounts two V100s with an NVLink bridge between them, which opens
-up tensor-parallel inference and bigger models / longer context than a single 16 GB card can
-hold. Comparative benchmarks against the single card to come once it's together.
+I built a PCIe card that mounts two V100s with an NVLink bridge between them. It bifurcates the
+slot x8/x8 and the bridge is a 2-link one, about 51 GB/s. The point of it was multi-agent serving,
+lots of concurrent requests at once, with NVLink doing the heavy lifting between the cards.
+
+First thing I got wrong: I assumed GPU-to-GPU P2P was blocked on Windows. It isn't. A direct
+`cudaMemcpyPeer` test does 33 GB/s across the bridge in TCC mode, well above the x8 PCIe link, so
+NVLink works fine on Windows, you just have to actually use it.
+
+A couple of things that matter. For a single request of a model that fits on one card (Gemma 4),
+one card is fastest, splitting it across two just adds sync overhead and comes out slower. So for
+single-user work the second card does nothing, don't bother.
+
+The win is concurrency. Run the model tensor-parallel (`-sm tensor`) across both cards and throw a
+pile of requests at it and the second card earns its keep. The tricky bit is the all-reduce
+between the cards every layer, which is the thing NVLink is actually for. llama.cpp can use NCCL
+for that, but it turns out it defaults to its own internal all-reduce on Windows and only picks
+NCCL by default on Linux, so on Windows NCCL is opt-in via `GGML_CUDA_ALLREDUCE=nccl`.
+
+There's no NCCL for Windows from NVIDIA though, so I built one (the SystemPanic/nccl-windows port,
+compiled for sm_70) and rebuilt llama.cpp against it. With that in place NCCL runs the all-reduce
+straight over NVLink P2P, the log confirms it with `via P2P/direct pointer`, and the numbers are
+worth the effort. On Qwen3 35B at 16-32 concurrent requests, NCCL over NVLink is ~40-50% more
+aggregate throughput than the Windows default, mostly from roughly 2x faster prompt processing
+plus a bit on decode. On a real server hammered with 16 concurrent clients it's +22% throughput
+and ~18% lower latency. Disabling P2P, so the all-reduce goes through host RAM instead, kills most
+of that, so it really is NVLink doing the work and not just the second GPU's compute.
+
+So for a Windows box doing multi-agent: nccl-windows + llama.cpp built with NCCL, `-sm tensor`,
+`GGML_CUDA_ALLREDUCE=nccl`, `--parallel N`. All native Windows, no Linux required, build steps are
+in the kit ([docs/07](https://github.com/andrewleech/v100-llm-kit/blob/main/docs/07-dual-nvlink.md)).
+
+vLLM would be the stronger throughput engine and I had a real go at it. It builds on Windows for
+sm_70, which I'm pretty sure is a first, but it won't actually run, torch's gloo can't bring up its
+comms backend on Windows. Getting past that needs a torch rebuild from source, and even then
+vLLM's tensor-parallel wants NCCL anyway, so llama.cpp + NCCL gets to the same place with a lot
+less pain.
+
+One aside that surprised me: flipping the cards from MCDM to TCC looked like it roughly doubled
+single-card decode. I haven't pinned it down with a clean A/B yet (build and KV settings differ
+too) but if it holds it's a bigger lever than any of the multi-GPU stuff. On the list. Numbers for
+all of this are in the
+[kit benchmarks](https://github.com/andrewleech/v100-llm-kit/blob/main/docs/benchmarks.md).
 
 ## The kit
 

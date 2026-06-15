@@ -1,13 +1,13 @@
-# 03 — Windows native setup
+# 03, Windows native setup
 
-Windows native is the fastest path for token generation (no WSL2 virtualisation tax — see
+Windows native is the fastest path for token generation (no WSL2 virtualisation tax, see
 [benchmarks](benchmarks.md#windows-native-vs-wsl2)). Use the prebuilt binaries, or build from
 source with MSVC.
 
 **CUDA requirement: V100 needs CUDA 12.8.** CUDA 13.0+ dropped SM_70 (Volta) support. CUDA 12.x
 and 13.x install side-by-side fine.
 
-## Option A — prebuilt binaries
+## Option A, prebuilt binaries
 
 1. Install the CUDA 12.8 **runtime** (the serve scripts need the DLLs):
    ```
@@ -21,7 +21,7 @@ and 13.x install side-by-side fine.
 The serve scripts prepend the CUDA 12.8 `bin` to `PATH` so the binaries find their DLLs even
 when CUDA 13.x is also installed.
 
-## Option B — build from source
+## Option B, build from source
 
 Prerequisites:
 

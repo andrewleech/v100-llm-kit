@@ -7,7 +7,7 @@ plus wiring for Claude Code and OpenClaw. Aimed at buyers of these cards.
 ## Layout
 
 - `docs/` — numbered setup guides: `01-hardware` (MCDM driver), `02-linux-setup`,
-  `03-windows-setup`, `04-models`, `05-claude-code`, `06-openclaw`, `benchmarks`.
+  `03-windows-setup`, `04-models`, `05-claude-code`, `06-openclaw`, `07-dual-nvlink`, `benchmarks`.
 - `scripts/linux/` + `scripts/windows/` — serve + download scripts, and chat templates.
 - `scripts/demo/` — asciinema recorders and the streaming chat client for the README gifs.
 - `assets/` — `gifs/` + `casts/` (demos), `screenshots/` (OpenClaw), `photos/` (GPU, TODO).
@@ -26,6 +26,11 @@ plus wiring for Claude Code and OpenClaw. Aimed at buyers of these cards.
 - **Windows native TG is faster than WSL2** (~21% Gemma, ~43% Qwen) — see `docs/benchmarks.md`.
 - **Claude Code / OpenClaw cold-start:** the ~24k-token system prompt is processed once then
   cached (`-cram`); warm turns are fast. Gemma's cold start (~15s) beats Qwen's (~2.5min).
+- **Dual V100 + NVLink is for multi-agent/concurrency, not single-stream.** Use upstream llama.cpp
+  built with `-DGGML_CUDA_NCCL=ON` (against nccl-windows, sm_70) + `-sm tensor` + env
+  `GGML_CUDA_ALLREDUCE=nccl` + `--parallel N` (see `serve-dual-nccl.bat`, `docs/07-dual-nvlink.md`).
+  NCCL-over-NVLink gives ~40-50% more aggregate throughput vs the Windows-default `internal`
+  all-reduce under load. Single card is faster for a single stream of a model that fits 16 GB.
 
 ## Conventions
 

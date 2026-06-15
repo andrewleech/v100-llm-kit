@@ -37,13 +37,15 @@ decent CPU. Pick whichever suits, the kit serves both.
 
 ## Docs
 
-- [01 — Hardware & driver setup](docs/01-hardware.md)
-- [02 — Linux / WSL2 setup](docs/02-linux-setup.md)
-- [03 — Windows native setup](docs/03-windows-setup.md)
-- [04 — Models: which, how to pull, sizing](docs/04-models.md)
-- [05 — Claude Code, fully local](docs/05-claude-code.md)
-- [06 — OpenClaw, fully local](docs/06-openclaw.md)
-- [Benchmarks](docs/benchmarks.md)
+1. [Hardware & driver setup](docs/01-hardware.md)
+2. [Linux / WSL2 setup](docs/02-linux-setup.md)
+3. [Windows native setup](docs/03-windows-setup.md)
+4. [Models: which, how to pull, sizing](docs/04-models.md)
+5. [Claude Code, fully local](docs/05-claude-code.md)
+6. [OpenClaw, fully local](docs/06-openclaw.md)
+7. [Dual V100 + NVLink (multi-agent serving)](docs/07-dual-nvlink.md)
+
+Plus [Benchmarks](docs/benchmarks.md) for the numbers.
 
 ## See it running
 
@@ -54,14 +56,14 @@ Anthropic's:
 ![Qwen3 reporting its identity](assets/gifs/chat-identity-qwen.gif)
 
 Claude Code pointed at the local server: two quick chat answers (from the project's CLAUDE.md,
-~1-4s each) then a file read showing real code. Note the model name in the status bar — the
+~1-4s each) then a file read showing real code. Note the model name in the status bar, the
 whole agent loop runs on the V100:
 
 ![Claude Code on the local model](assets/gifs/claude-project-tour.gif)
 
 These play at real speed (no speed-up), only dead air between turns is trimmed.
 
-And OpenClaw driving the same card through Telegram — it reports the local model, and even runs
+And OpenClaw driving the same card through Telegram, it reports the local model, and even runs
 a shell command (`hostname`) to answer where it's running:
 
 ![OpenClaw on Telegram, backed by the V100](assets/screenshots/openclaw-telegram.png)
