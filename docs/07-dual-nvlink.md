@@ -10,6 +10,18 @@ the all-reduce over NVLink. Under concurrency this gives **~40–50% more aggreg
 > (e.g. Qwen3.6 35B fully resident). For a *single* stream of a model that fits one card, one card
 > is faster, don't split it.
 
+The second case is worth spelling out, it's a single-stream win, not a concurrency one. On a single
+card Qwen3.6 35B has to offload experts to CPU RAM (the IQ4_XS weights are ~18 GB), which is what
+makes its Claude Code cold start so slow, ~2.5 min to process the ~24k-token system prompt. Split it
+across both cards with `-sm layer` and it sits entirely in VRAM, no offload, and that cold start
+drops to **~13s** (warm turns ~1s). Same project tour as the single-card README gif, on the dual card:
+
+![Claude Code on dual-card Qwen3 35B, fully resident](../assets/gifs/claude-qwen-dual.gif)
+
+No NCCL needed for this, `-sm layer` is a pipeline split with no per-layer all-reduce (NCCL only
+matters for the `-sm tensor` concurrency path below). Measured with upstream llama.cpp, both GPUs
+visible, `-sm layer -ts 1/1 -ngl 99 -fa on -c 32768` and q8_0 KV, the rest as `serve-qwen3.bat`.
+
 ## 1. Hardware / driver
 
 - The dual card needs the x16 slot set to **PCIe bifurcation x8/x8** in BIOS (+ Above 4G Decoding).

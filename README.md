@@ -61,6 +61,12 @@ whole agent loop runs on the V100:
 
 ![Claude Code on the local model](assets/gifs/claude-project-tour.gif)
 
+Same session on the dual-V100 card running the bigger Qwen3.6 35B fully resident across both GPUs.
+On a single card that model offloads experts to CPU and the cold start is ~2.5 min; held resident
+on two cards it's ~13s, with warm turns about a second ([docs/07](docs/07-dual-nvlink.md)):
+
+![Claude Code on dual-card Qwen3 35B](assets/gifs/claude-qwen-dual.gif)
+
 These play at real speed (no speed-up), only dead air between turns is trimmed.
 
 And OpenClaw driving the same card through Telegram, it reports the local model, and even runs
@@ -102,6 +108,10 @@ prompt in ~12s (pure GPU), Qwen takes ~2.5 min because its MoE expert-offload ma
 long-prompt processing much slower. So Gemma's the nicer Claude Code experience, mostly
 because of the gentle cold start. Add a longer reply and the warm turn grows by the generation
 time on top.
+
+That Qwen cold start is a single-card limitation, not the model's. On the dual-V100 card it runs
+fully resident across both GPUs with no CPU offload, which drops the cold start to ~13s, see
+[docs/07-dual-nvlink.md](docs/07-dual-nvlink.md).
 
 ## License
 

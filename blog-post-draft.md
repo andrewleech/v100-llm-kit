@@ -156,9 +156,22 @@ NVLink works fine on Windows, you just have to actually use it.
 
 A couple of things that matter. For a single request of a model that fits on one card (Gemma 4),
 one card is fastest, splitting it across two just adds sync overhead and comes out slower. So for
-single-user work the second card does nothing, don't bother.
+single-user work on a model that fits, the second card does nothing, don't bother.
 
-The win is concurrency. Run the model tensor-parallel (`-sm tensor`) across both cards and throw a
+That fits-one-card bit is the catch though. Qwen3 35B doesn't fit, and that's where the second
+card earns its keep even single threaded. On one card it has to offload experts to CPU RAM, which
+is exactly what makes its Claude Code cold start so brutal, about 2.5 min to chew through that 24k
+system prompt. Put it across both cards with layer split and the whole model sits in VRAM, no CPU
+offload at all, and that same cold start drops to ~13s. Here's the project tour from earlier, same
+prompts, running Qwen3 35B on the dual card:
+
+![Claude Code on dual-card Qwen3 35B, fully resident](_assets/v100-kit/claude-qwen-dual.gif)
+
+Warm turns after that are about a second. So the second card doesn't just buy you concurrency, it
+makes the bigger, stronger model genuinely pleasant single threaded, which the single card never
+managed because of all that CPU offload. Real speed, no speed-up, same as the other gifs.
+
+The other win is concurrency. Run the model tensor-parallel (`-sm tensor`) across both cards and throw a
 pile of requests at it and the second card earns its keep. The tricky bit is the all-reduce
 between the cards every layer, which is the thing NVLink is actually for. llama.cpp can use NCCL
 for that, but it turns out it defaults to its own internal all-reduce on Windows and only picks
