@@ -179,12 +179,21 @@ NCCL by default on Linux, so on Windows NCCL is opt-in via `GGML_CUDA_ALLREDUCE=
 
 There's no NCCL for Windows from NVIDIA though, so I built one (the SystemPanic/nccl-windows port,
 compiled for sm_70) and rebuilt llama.cpp against it. With that in place NCCL runs the all-reduce
-straight over NVLink P2P, the log confirms it with `via P2P/direct pointer`, and the numbers are
-worth the effort. On Qwen3 35B at 16-32 concurrent requests, NCCL over NVLink is ~40-50% more
-aggregate throughput than the Windows default, mostly from roughly 2x faster prompt processing
-plus a bit on decode. On a real server hammered with 16 concurrent clients it's +22% throughput
-and ~18% lower latency. Disabling P2P, so the all-reduce goes through host RAM instead, kills most
-of that, so it really is NVLink doing the work and not just the second GPU's compute.
+straight over NVLink P2P, the log confirms it with `via P2P/direct pointer`. The numbers are more
+modest than I first thought though. On Qwen3 35B and Gemma at 16-32 concurrent, NCCL over NVLink is
+about 7-9% more aggregate throughput than the Windows default, and it's basically all prompt
+processing (~30% faster PP), decode comes out a wash. The NVLink bridge itself is worth a touch more
+once you isolate it, +17-21% aggregate, and tellingly NCCL with P2P disabled (all-reduce through host
+RAM) is actually slower than the built-in Windows path. So NVLink is genuinely doing the work, NCCL
+without it isn't worth having, it's just that for mixed prefill+decode load the all-reduce isn't the
+whole story.
+
+Worth being honest about how I got that number wrong at first. My early benchmarks had one GPU
+thermally throttling, which dragged the baseline down and made NCCL look like a 40-50% win. Once the
+fans were sorted and I re-ran it back to back at 60-odd degrees, the real gap was about a third of
+that. The throttling fooled me, the cool numbers are the ones to trust. (There's a prefill-heavy
+real-server test where it looked more like +22%, but that one predates the fan fix too, so I'd take
+it with salt until I re-run it.)
 
 So for a Windows box doing multi-agent: nccl-windows + llama.cpp built with NCCL, `-sm tensor`,
 `GGML_CUDA_ALLREDUCE=nccl`, `--parallel N`. All native Windows, no Linux required, build steps are

@@ -2,8 +2,8 @@
 
 Two V100s on one PCIe card with an NVLink bridge, for **concurrent / multi-agent serving** on
 Windows. The win comes from running the model tensor-parallel across both cards with NCCL driving
-the all-reduce over NVLink. Under concurrency this gives **~40–50% more aggregate throughput**
-(~2× prompt processing, +14% decode) than the Windows default, numbers in
+the all-reduce over NVLink. Under concurrency this gives **~7–9% more aggregate throughput**
+(~30–37% faster prompt processing, decode about flat) than the Windows default, numbers in
 [benchmarks.md](benchmarks.md#dual-v100--nvlink--multi-agent-nccl-all-reduce).
 
 > **When to use this.** Multi-agent / high-concurrency, or a model too big for one 16 GB card
@@ -90,6 +90,12 @@ NCCL+NVLink is **+22% throughput and ~18% lower latency** end-to-end. Throughput
 from 1→16 concurrent (47 → 122 → 155 → 174 tok/s at 1/4/8/16). (These are lower than the
 synthetic `llama-batched-bench` figures above because each request re-prefills its prompt and
 competes with decode, batched-bench measures pure lock-step TG.)
+
+> Caveat: this real-server table predates the chassis-fan fix and was *not* re-measured in the
+> back-to-back pass that revised the batched-bench numbers above. Its `internal` baseline may have
+> been throttling, same as the old batched figures, so the +22% likely overstates the gap. It's a
+> prefill-heavy workload, so NCCL's prompt-processing win does carry more weight here than in the
+> mixed batched-bench aggregate, but treat the exact figure as indicative until re-run. **TODO: re-measure.**
 
 ## 6. Gotchas
 

@@ -29,8 +29,10 @@ plus wiring for Claude Code and OpenClaw. Aimed at buyers of these cards.
 - **Dual V100 + NVLink is for multi-agent/concurrency, not single-stream.** Use upstream llama.cpp
   built with `-DGGML_CUDA_NCCL=ON` (against nccl-windows, sm_70) + `-sm tensor` + env
   `GGML_CUDA_ALLREDUCE=nccl` + `--parallel N` (see `serve-dual-nccl.bat`, `docs/07-dual-nvlink.md`).
-  NCCL-over-NVLink gives ~40-50% more aggregate throughput vs the Windows-default `internal`
-  all-reduce under load. Single card is faster for a single stream of a model that fits 16 GB.
+  NCCL-over-NVLink gives ~7-9% more aggregate throughput (almost all of it prompt processing,
+  decode is a wash) vs the Windows-default `internal` all-reduce under load; an earlier ~40-50%
+  figure was a thermal-throttling artifact, see `docs/benchmarks.md`. Single card is faster for a
+  single stream of a model that fits 16 GB.
 
 ## Conventions
 

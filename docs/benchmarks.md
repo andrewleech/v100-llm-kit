@@ -90,7 +90,7 @@ Qwen3 27B 822 / 822 / 384 for single / layer / tensor. `tensor` consistently tra
 
 ### Does NVLink do anything?
 
-**For single-stream: no. For multi-agent (concurrent): yes, a lot.** Single-stream `tensor` mode
+**For single-stream: no. For multi-agent (concurrent): yes, mostly on prompt processing.** Single-stream `tensor` mode
 moves too little per token to notice, forcing copies off the bridge (`GGML_CUDA_NO_PEER_COPY=1`)
 left TG unchanged (39.44 → 39.07 tok/s). But P2P over NVLink *does* work on Windows (TCC): a direct
 `cudaMemcpyPeer` test measures **33 GB/s** GPU↔GPU (vs ~8–13 for the x8 PCIe link). Under concurrent
@@ -105,29 +105,39 @@ Building llama.cpp with `-DGGML_CUDA_NCCL=ON` against a Windows NCCL ([nccl-wind
 built for sm_70) and running with `GGML_CUDA_ALLREDUCE=nccl` switches the all-reduce to NCCL over
 NVLink. See [docs/07-dual-nvlink.md](07-dual-nvlink.md) for the build, and `scripts/windows/serve-dual-nccl.bat`.
 
-`llama-batched-bench`, `-sm tensor -ts 1/1`, prompt 256 / gen 128, total tok/s (PP / TG / aggregate):
+`llama-batched-bench`, `-sm tensor -ts 1/1`, prompt 256 / gen 128, **q8_0 KV** (as
+`serve-dual-nccl.bat` ships), TCC, total tok/s (PP / TG / aggregate). Back-to-back A/B, GPUs at
+61 °C peak, no throttling:
 
 **Gemma 4 26B-A4B**, 16 parallel sequences:
 
 | all-reduce | PP t/s | TG t/s | aggregate t/s |
 |---|---|---|---|
-| internal (Windows default) | 1093 | 413 | 706 |
-| **NCCL + NVLink** | **2774** | **472** | **1057** |
-| NCCL, P2P disabled (host) | 1255 | 382 | 712 |
+| internal (Windows default) | 2036 | 465 | 958 |
+| **NCCL + NVLink** | **2780** | 451 | **1022** |
+| NCCL, P2P disabled (host) | 1671 | 422 | 841 |
 
 **Qwen3.6 35B-A3B**, 32 parallel sequences:
 
 | all-reduce | PP t/s | TG t/s | aggregate t/s |
 |---|---|---|---|
-| internal (Windows default) | 1290 | 437 | 781 |
-| **NCCL + NVLink** | **2663** | **498** | **1087** |
-| NCCL, P2P disabled (host) | 1468 | 426 | 809 |
+| internal (Windows default) | 2086 | 566 | 1101 |
+| **NCCL + NVLink** | **2704** | 567 | **1199** |
+| NCCL, P2P disabled (host) | 1869 | 536 | 1022 |
 
-NCCL+NVLink beats the Windows default by **~40–50% aggregate** under concurrency, driven mostly by
-**~2× prompt processing** plus **+14% decode**. The NCCL-vs-NCCL-no-P2P rows isolate NVLink itself:
-worth **+34% aggregate / +81% PP / +17% TG** on Qwen3 at 32-way. (Note NCCL *without* P2P is slower
-than `internal` at low concurrency, NCCL only wins *because of* NVLink.) NCCL confirms the transport
-in its log: `Channel 00/0 : 0[0] -> 1[1] via P2P/direct pointer`.
+NCCL+NVLink beats the Windows-default `internal` all-reduce by **~7–9% aggregate** under concurrency
+(Gemma +7%, Qwen3 +9%). The win is almost all **prompt processing, ~30–37% faster PP**; decode is a
+wash (tied on Qwen3, a touch behind on Gemma). The NCCL-vs-no-P2P rows isolate NVLink itself, worth
+**+17–21% aggregate / +45–66% PP / +6–7% TG**. Note NCCL *without* P2P is *slower* than `internal`
+(Gemma 841 < 958, Qwen3 1022 < 1101), so NCCL only pays off *because of* NVLink, the built-in internal
+all-reduce is otherwise fine. NCCL confirms the transport in its log:
+`Channel 00/0 : 0[0] -> 1[1] via P2P/direct pointer`.
+
+> An earlier pass reported ~40–50% aggregate / ~2× PP / +14% decode here. That was measured before the
+> chassis fans were sorted, with GPU0 throttling, which dragged the `internal` and no-P2P baselines down
+> and inflated the NCCL win. These back-to-back numbers at 61 °C supersede it. The NCCL+NVLink figures
+> reproduced across both passes (Gemma 1057→1022, Qwen3 1087→1199); only the throttled baselines moved,
+> ~30–40% faster once cool.
 
 Single-stream still favours one card for a model that fits 16 GB (Gemma: single 99 > tensor 76 tok/s),
 the dual-card NCCL path is specifically for **concurrency** and for models that need both cards (Qwen3 35B).
