@@ -11,8 +11,8 @@ token generation. I've been assembling a few of these into machines and putting 
 setup pack so anyone buying one can get going without fighting the toolchain, so this post is
 partly the story of getting there and partly a pointer to the kit.
 
-**tldr:** Gemma 4 26B and Qwen3.6 35B both run with a single V100, ~28-57 tok/s depending
-on the model, fast enough to drive Claude Code and OpenClaw with nothing leaving the machine.
+**tldr:** Gemma 4 26B and Qwen3.6 35B both run on a single V100, ~55-100 tok/s in native Windows
+depending on the model, fast enough to drive Claude Code and OpenClaw with nothing leaving the machine.
 Prebuilt binaries and scripts for Windows and Linux are at
 [github.com/andrewleech/v100-llm-kit](https://github.com/andrewleech/v100-llm-kit).
 
@@ -70,6 +70,23 @@ memory-bound decode path, and Qwen3 pays it more because MoE expert offload mean
 GPU-to-CPU round trips, each one wearing the virtualisation tax. Gemma 4 is pure GPU so there's
 far less back and forth. So native Windows is what the kit leads with, and the Linux builds it
 ships are for actual Linux hosts, where they're the fastest path of the lot, not for WSL.
+
+## How it stacks up against the hosted APIs
+
+The question I get is whether it's anywhere near a hosted model for speed, and the honest answer is:
+on raw output speed, closer than you'd think. Single-stream decode, the V100 sits right in the
+frontier-API band, Gemma actually clears most of them:
+
+![Single-stream decode speed, the V100 vs hosted frontier APIs](_assets/v100-kit/output-speed-vs-hosted.png)
+
+Worth being clear about what that does and doesn't say though. It's decode speed only, not
+time-to-first-token, and that's where hosted wins hands down, they answer in under a second while the
+V100's cold start is slow (the Qwen 24k-prompt cold start is minutes on a single card). Tokens aren't
+the same size across tokenizers, so it's indicative, not exact. And the real gap isn't speed at all,
+it's quality, the frontier models are plainly smarter, you're buying privacy and a flat running cost,
+not parity. But for the thing people assume, that a 2017 card must be glacial next to an API, the
+decode numbers say otherwise. (Hosted figures are third-party medians, Artificial Analysis and the
+like, June 2026, and they wander with load.)
 
 ## Proving it's actually local
 
@@ -224,6 +241,11 @@ two of them pull hard and pull together, so you want a good-quality unit with re
 solid transient response, not just one whose label adds up to the number. If you ever see
 unexplained reboots under sustained dual-card load, suspect the supply before the software. (Built
 machines from me are already speced for it.)
+
+Once the supply was sorted, the same load that used to kill the box ran a full 25-minute soak
+without a hiccup, both cards holding ~58-65 °C the whole way:
+
+![Dual-V100 25-minute soak, temperature holding steady](_assets/v100-kit/dual-soak-thermals.png)
 
 ## The kit
 

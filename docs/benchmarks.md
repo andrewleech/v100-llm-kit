@@ -163,9 +163,40 @@ marginal card), so it's the one to watch. This inference load draws ~140–150 W
 of margin to the ~85 °C throttle. Worth a guard, `scripts/thermal-guard.sh` polls both GPUs and
 kills inference at 84 °C.
 
+![Dual-V100 soak: GPU temperature over a 25-minute concurrent run](../assets/charts/dual-soak-thermals.png)
+
 The earlier spontaneous reboots under concurrent dual-GPU load were **not thermal** (they hit at
 ~45 °C). They were power delivery: the two cards stepping current together browned out a rail and
 hung a GPU (`0x133 DPC_WATCHDOG_VIOLATION`, which fingers the driver only as a symptom). Same crash
 on two different driver branches, with NVLink disabled, and with zero ECC errors, so it wasn't the
 driver, the bridge, or memory. A PSU with adequate transient headroom fixed it, the soak above ran
 clean end to end on the replacement.
+
+## How it compares to hosted APIs
+
+The question everyone asks is raw output speed, and on a single stream the V100 sits right in the
+hosted-frontier band:
+
+![Single-stream decode speed: local V100 vs hosted APIs](../assets/charts/output-speed-vs-hosted.png)
+
+| Model | Single-stream output | Source |
+|---|---|---|
+| Gemma 4 26B (V100, native TCC) | 99.8 tok/s | measured here |
+| GPT-5.5 | ~92 tok/s | 3rd-party, Jun 2026 |
+| Claude Opus 4.7 | ~78 tok/s | 3rd-party, Jun 2026 |
+| Qwen3.6 35B (V100, native TCC) | 54.5 tok/s | measured here |
+| Claude Sonnet 4.6 | ~53 tok/s | 3rd-party, Jun 2026 |
+| GPT-5.4 | ~20–30 tok/s | 3rd-party, Jun 2026 |
+
+Gemma on the card decodes faster than several hosted models and Qwen sits mid-pack, but read it
+honestly, it's a narrow claim:
+
+- **Decode speed only, not time-to-first-token.** Hosted APIs start answering in under a second; the
+  V100's cold start is slow (Gemma ~15 s, Qwen ~2.5 min single-card on a 24k prompt), so short
+  interactive turns still feel snappier on a hosted endpoint.
+- **Different tokenizers**, so tok/s is indicative across models, not an exact apples-to-apples unit.
+- **Quality is the real gap.** The hosted frontier models are far more capable, you're trading
+  capability for privacy and a flat running cost, not matching them.
+- **Single stream both sides.** Hosted endpoints serve huge concurrency; these are single-request rates.
+
+Hosted figures are third-party medians (Artificial Analysis and similar, June 2026) and move with load.
