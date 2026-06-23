@@ -15,6 +15,11 @@ The last one is for the dual-V100 NVLink card, it's upstream llama.cpp built wit
 tensor-parallel multi-agent serving (see [docs/07-dual-nvlink.md](../docs/07-dual-nvlink.md)). It
 bundles `nccl.dll` so NCCL loads at runtime, plus `serve-dual-nccl.bat`.
 
+> **Driver requirement (Windows).** These are **CUDA 12.8** binaries, so the NVIDIA driver must sit
+> in the **R570–R580** window: R570+ (570.65) to load the GPU kernels, R580 or older for Volta/V100
+> support. Too old (e.g. R535) gives `device kernel image is invalid`; past R580 drops Volta.
+> Recommended **R570 573.96**. See [docs/01-hardware.md](../docs/01-hardware.md).
+
 ## ZIP contents
 
 ```

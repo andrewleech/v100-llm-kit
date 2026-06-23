@@ -1,7 +1,7 @@
 # 02, Linux / WSL2 setup
 
 Two ways to go: use the prebuilt binaries from [Releases](../../releases) (easiest), or build
-from source. Both engines need CUDA 12.x, **CUDA 13.0+ dropped SM_70 (Volta) support**, so the
+from source. Both engines need CUDA 12.x, **CUDA 13.3 dropped SM_70 (Volta) support**, so the
 V100 needs the 12.x line.
 
 ## Option A, prebuilt binaries

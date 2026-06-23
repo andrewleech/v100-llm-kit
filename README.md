@@ -27,8 +27,9 @@ decent CPU. Pick whichever suits, the kit serves both.
 
 ## Quick start
 
-1. **Driver:** get the card into MCDM mode (see [docs/01-hardware.md](docs/01-hardware.md)).
-   On Linux native you can skip this.
+1. **Driver:** install an **R570–R580** data-center driver (the V100's CUDA 12.8 window), then put
+   the card in MCDM mode for WSL2 (or TCC for native). See [docs/01-hardware.md](docs/01-hardware.md).
+   On Linux native you can skip the mode step.
 2. **Grab the binaries** for your OS from [Releases](../../releases), extract somewhere.
 3. **Pull a model:** `scripts/<os>/download-models.*` (needs a free Hugging Face account).
 4. **Serve it:** `scripts/<os>/serve-gemma4.*` or `serve-qwen3.*`.

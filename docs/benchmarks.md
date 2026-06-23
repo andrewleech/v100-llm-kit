@@ -154,6 +154,18 @@ clearly worth it, but the exact factor wants a controlled same-build/same-KV run
 ### Thermals
 
 SXM2 cards are passively cooled in servers and lean hard on chassis airflow. On the custom dual
-adapter, early runs had GPU0 throttling at 82–85 °C (TG dropped ~25%) until the fans were sorted;
-after that it idles ~31 °C and holds ~60 °C under sustained dual-card load. Worth a guard,
-`scripts/thermal-guard.sh` polls both GPUs and kills inference at 84 °C.
+adapter, early runs had GPU0 throttling at 82–85 °C (TG dropped ~25%) until the cooling was sorted.
+A 25-minute sustained soak (Qwen3 35B, `-sm tensor` + NCCL, 16-way) then held steady with no
+throttle and clocks pinned at full: **GPU0 ~64 °C plateau (65 °C peak), GPU1 ~58 °C**, memory a few
+degrees lower, idle ~37 °C. GPU0 runs ~7 °C hotter than GPU1 at the same load (~0.19 °C/W, the
+marginal card), so it's the one to watch. This inference load draws ~140–150 W/card average (peaks
+~230 W in prefill bursts), well under the 300 W TDP, since decode is memory-bound, so there's plenty
+of margin to the ~85 °C throttle. Worth a guard, `scripts/thermal-guard.sh` polls both GPUs and
+kills inference at 84 °C.
+
+The earlier spontaneous reboots under concurrent dual-GPU load were **not thermal** (they hit at
+~45 °C). They were power delivery: the two cards stepping current together browned out a rail and
+hung a GPU (`0x133 DPC_WATCHDOG_VIOLATION`, which fingers the driver only as a symptom). Same crash
+on two different driver branches, with NVLink disabled, and with zero ECC errors, so it wasn't the
+driver, the bridge, or memory. A PSU with adequate transient headroom fixed it, the soak above ran
+clean end to end on the replacement.

@@ -61,13 +61,41 @@ networkingMode=mirrored
 Mirror mode gives WSL2 the same IP as Windows, so `localhost` works from both sides without
 port forwarding. Restart WSL after changing it (`wsl --shutdown`).
 
+## Driver version (don't grab the newest one)
+
+Install a data-center / Tesla driver that supports Volta and matches the CUDA these binaries are
+built with. There's a narrow window: CUDA 12.8 needs **R570 or newer** (anything older won't load
+the kernels, you get `device kernel image is invalid` and a silent CPU fallback), while Volta
+support ends at **R580** (R595 / CUDA 13.3 drops it), so it has to be **R580 or older** too. The pick
+is **R570 573.96** (CUDA 12.8 native, supports Volta), Windows 10/11:
+
+```
+https://us.download.nvidia.com/tesla/573.96/573.96-data-center-tesla-desktop-win10-win11-64bit-dch-international.exe
+```
+
+Clean-install with DDU if you're coming off a newer driver, then set the mode you need (MCDM for
+WSL2, TCC for native multi-GPU). Check what's installed with
+`nvidia-smi --query-gpu=driver_version --format=csv,noheader`.
+
 ## Dual V100 + NVLink
 
-<!-- PLACEHOLDER: dual-V100 NVLink PCIe card, future product. -->
+A PCIe card mounting two V100s with an NVLink bridge, for multi-agent / high-concurrency serving
+and for models too big for a single 16 GB card (e.g. Qwen3.6 35B fully resident). Build, serve, and
+numbers are in [07-dual-nvlink.md](07-dual-nvlink.md) and
+[benchmarks.md](benchmarks.md#dual-v100--nvlink). One thing to size right: two V100s drawing current
+together need a PSU with real transient headroom, an underspecced supply will hard-reset the box
+under concurrent load even well below the cards' rated draw (see the benchmarks thermals note).
 
-A PCIe card mounting two V100s with an NVLink bridge is in the works. It opens up
-tensor-parallel inference and models/contexts too big for a single 16 GB card. Setup notes and
-[benchmarks](benchmarks.md#dual-v100--nvlink) to follow once it's built.
+## Power supply
+
+A single V100 runs fine on any sensible supply. A **dual-V100 build is more demanding**, and not
+just on total wattage. When both cards come off idle and ramp their current at the same instant, a
+marginal supply can't absorb that transient and the machine browns out and reboots. It looks like a
+random crash (often a `0x133 DPC_WATCHDOG_VIOLATION` in the Windows dumps, at low temperature and
+well under the power cap), but the fix is a better supply, not a driver or a cooler. Use a
+good-quality unit with plenty of headroom and solid transient response for two cards, and if you see
+unexplained reboots under sustained dual-card load, suspect the PSU first. Built machines from me are
+speced for this.
 
 ## CPU and RAM
 

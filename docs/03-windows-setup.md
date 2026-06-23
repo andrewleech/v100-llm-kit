@@ -4,8 +4,13 @@ Windows native is the fastest path for token generation (no WSL2 virtualisation 
 [benchmarks](benchmarks.md#windows-native-vs-wsl2)). Use the prebuilt binaries, or build from
 source with MSVC.
 
-**CUDA requirement: V100 needs CUDA 12.8.** CUDA 13.0+ dropped SM_70 (Volta) support. CUDA 12.x
+**CUDA requirement: V100 needs CUDA 12.8.** CUDA 13.3 dropped SM_70 (Volta) support. CUDA 12.x
 and 13.x install side-by-side fine.
+
+**Driver:** use an **R570–R580** data-center driver (see the driver-version note in
+[01-hardware.md](01-hardware.md)). The CUDA 12.8 installer below bundles 571.96, which is in that
+window. Don't run a driver past R580 (drops Volta) or older than R570 (won't load the CUDA 12.8
+kernels).
 
 ## Option A, prebuilt binaries
 

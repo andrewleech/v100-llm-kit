@@ -25,6 +25,10 @@ visible, `-sm layer -ts 1/1 -ngl 99 -fa on -c 32768` and q8_0 KV, the rest as `s
 ## 1. Hardware / driver
 
 - The dual card needs the x16 slot set to **PCIe bifurcation x8/x8** in BIOS (+ Above 4G Decoding).
+- **Power supply:** two V100s ramping current together is a sharp transient, and a marginal PSU
+  can't absorb it, so the box browns out and reboots under sustained dual-card load (a low-temp
+  `0x133 DPC_WATCHDOG_VIOLATION`, well under the power cap, is the tell). Use a good supply with real
+  headroom and solid transient response.
 - Put both GPUs in **TCC** (compute) mode, best for GPU↔GPU P2P, and all serving here is
   native-Windows so WSL2 (which needs MCDM) isn't required:
   ```

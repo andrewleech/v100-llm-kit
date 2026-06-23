@@ -19,7 +19,16 @@ plus wiring for Claude Code and OpenClaw. Aimed at buyers of these cards.
 - **Two engines, two model shapes.** Gemma 4 26B-A4B (QAT Q4_0) runs on **upstream llama.cpp**
   — pure GPU, needs sliding-window-attention KV compression. Qwen3.6 35B-A3B (IQ4_XS) runs on
   **ik_llama.cpp** — MoE expert offload to CPU RAM. Don't swap these; ik can't do Gemma's SWA-KV.
-- **Binaries are SM_70 only.** CUDA 12.x required (13.0+ dropped Volta). Windows: CUDA 12.8.
+- **Binaries are SM_70 only.** CUDA 12.x required (CUDA 13.3 dropped Volta). Windows: CUDA 12.8.
+- **Windows driver: R570–R580 window, use R570 573.96.** CUDA 12.8 binaries need driver >= R570
+  (570.65) or kernels won't load (`device kernel image is invalid`, so R535/539.72 is too old);
+  Volta is supported only through R580 (R595/CUDA 13.3 drops it). Use the R570 data-center driver
+  573.96. See `docs/01-hardware.md`.
+- **Dual-card power: use a strong PSU.** The dual-V100 box's spontaneous reboots under sustained
+  dual-card load (a `0x133 DPC_WATCHDOG_VIOLATION` at low temp, well under the power cap) were an
+  insufficient power supply — the current transient when both cards ramp together, not the driver
+  (reproduced across R570 and R580) and not thermal. A single card is fine on any sensible supply;
+  two need a good unit with headroom and solid transient response. See `docs/01-hardware.md`.
 - **Both models think by default; thinking is disabled** for agentic use via the bundled
   `*-template-nothink.jinja`, which the serve scripts auto-apply under `--jinja` (`THINK=1` opts
   back in).
