@@ -16,24 +16,30 @@ A V100 SXM2 isn't a normal PCIe card, it's the mezzanine form factor, so it need
 SXM2 carrier board or a SXM2-to-PCIe adapter to run in a desktop. If you bought a built machine
 from me that's already sorted.
 
-## Driver mode: MCDM (Windows + WSL2)
+## Driver mode (Windows): native uses TCC, WSL2 needs MCDM
 
-Skip this whole section if you're on **native Linux**, the standard NVIDIA driver just works.
+Skip this whole section if you're on **native Linux**, the standard NVIDIA driver just works (and
+a native Linux host is the fastest setup of the lot).
 
-On Windows the V100 is headless (no display outputs), so the datacentre driver defaults it to
-**TCC** mode. WSL2's GPU passthrough can't use TCC, you'll get `Failed to initialize NVML`
-inside WSL. The fix is **MCDM** mode (Microsoft Compute Driver Model), which is GPU-PV
-compatible. WDDM isn't available on this card (no display engine), so MCDM is the only option
-that lets WSL2 see the GPU, and it works fine on Volta.
+On Windows the V100 is headless (no display outputs), so the datacentre driver leaves it in
+**TCC** (compute) mode by default. That's exactly what you want for **native Windows, the
+recommended path here**, it's faster than WSL2 and needs no mode change at all. WDDM isn't
+available on this card (no display engine).
 
+Only bother with **MCDM** mode (Microsoft Compute Driver Model) if you specifically want to run
+under **WSL2**, whose GPU passthrough can't use TCC (you'll get `Failed to initialize NVML`). MCDM
+is the GPU-PV-compatible mode that lets WSL2 see the card, but the WSL2 virtualisation layer makes
+token generation slower, so prefer native Windows unless you actually need WSL2.
+
+For native Windows you're done, TCC is the default. The rest of this section is only for WSL2.
 Check the current mode from a Windows terminal:
 
 ```powershell
-nvidia-smi.exe        # look at the Driver-Model column, you want MCDM
+nvidia-smi.exe        # Driver-Model column; for WSL2 you want MCDM, for native Windows TCC is fine
 ```
 
-If it reads TCC, flip it to MCDM (this is a registry change + reboot, done once). Then from
-inside WSL:
+If it reads TCC and you want WSL2, flip it to MCDM (a registry change + reboot, done once). Then
+from inside WSL:
 
 ```bash
 /usr/lib/wsl/lib/nvidia-smi --query-gpu=name,driver_model.current --format=csv,noheader

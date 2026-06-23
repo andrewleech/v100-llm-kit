@@ -6,7 +6,7 @@ plus wiring for Claude Code and OpenClaw. Aimed at buyers of these cards.
 
 ## Layout
 
-- `docs/` — numbered setup guides: `01-hardware` (MCDM driver), `02-linux-setup`,
+- `docs/` — numbered setup guides: `01-hardware` (driver + TCC/MCDM modes), `02-linux-setup`,
   `03-windows-setup`, `04-models`, `05-claude-code`, `06-openclaw`, `07-dual-nvlink`, `benchmarks`.
 - `scripts/linux/` + `scripts/windows/` — serve + download scripts, and chat templates.
 - `scripts/demo/` — asciinema recorders and the streaming chat client for the README gifs.

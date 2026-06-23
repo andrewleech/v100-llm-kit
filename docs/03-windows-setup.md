@@ -67,7 +67,7 @@ set PORT=8080 & serve-qwen3.bat        :: override port
 
 ## A note on driver mode
 
-The Windows binaries run against the V100 in whatever mode the driver's in. MCDM (the mode WSL2
-needs) works fine. TCC mode might give a touch more CUDA performance for a Windows-only setup,
-but switching back to MCDM is a registry edit + reboot, so only go there if you've committed to
-Windows-only and want to chase the last few percent.
+For native Windows, leave the card in its **default TCC mode**, you don't need to change anything
+and it's the best mode for compute. MCDM (the mode WSL2 needs) also runs the binaries fine if the
+card's already in it, but there's no reason to switch to MCDM unless you also want WSL2, since that
+costs a registry edit + reboot each way.

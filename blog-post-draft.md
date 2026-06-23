@@ -1,5 +1,5 @@
 ---
-title: "A Tesla V100 in the Cupboard: Fully Local Claude Code and OpenClaw"
+title: "Datacentre under the desk: your own personal AI"
 date: 2026-06-13T10:30:00+10:00
 tags: [ai, claude, hardware, llm]
 ---
@@ -11,41 +11,31 @@ token generation. I've been assembling a few of these into machines and putting 
 setup pack so anyone buying one can get going without fighting the toolchain, so this post is
 partly the story of getting there and partly a pointer to the kit.
 
-**tldr:** Gemma 4 26B and Qwen3.6 35B both run nicely on a single V100, ~28-57 tok/s depending
+**tldr:** Gemma 4 26B and Qwen3.6 35B both run with a single V100, ~28-57 tok/s depending
 on the model, fast enough to drive Claude Code and OpenClaw with nothing leaving the machine.
 Prebuilt binaries and scripts for Windows and Linux are at
 [github.com/andrewleech/v100-llm-kit](https://github.com/andrewleech/v100-llm-kit).
 
-<!-- PHOTO: the V100 SXM2 card in the machine -->
+![The dual-V100 NVLink card (GAI NV-V3 carrier)](_assets/v100-kit/dual-card-hero.jpg)
 
 ## Why a V100 in 2026
 
 The honest answer is price. Frontier API models are better, no argument, but a V100 you own
-runs forever for the cost of power and never sends a token off the box. For coding agents
+runs forever with no subscription fees and never sends a token off the box. For coding agents
 especially that's worth a fair bit, the whole repo stays local. The card's a bit awkward
 though, it's Volta (compute 7.0), which means fp16 only, no bf16 and no int8 tensor cores. A
 lot of the modern quant advice floating around leans on those, so you can't just copy a recipe
 across, you have to build for what the card actually has.
 
-## The MCDM gotcha
-
-This one caught me out for a while. The V100 SXM2 is a headless compute card, no display
-outputs, so the Windows datacentre driver defaults it to TCC mode. TCC is great for raw CUDA
-but WSL2's GPU passthrough can't use it, you just get `Failed to initialize NVML` inside WSL
-and nothing works.
-
-The fix is MCDM mode (Microsoft Compute Driver Model), which is the GPU-PV compatible one. WDDM
-isn't available on this card because there's no display engine, so MCDM is the only route that
-lets WSL2 see the GPU. Once it's flipped over (registry + reboot, done once) the card shows up
-fine inside WSL. If you're running native Linux you can ignore all of this.
+![A single V100, the green Cybertank-shrouded card](_assets/v100-kit/single-card-topdown.jpg)
 
 ## Two engines, because two model shapes
 
-I ended up running two different builds of llama.cpp, which felt like overkill at first but
-there's a real reason.
+I run two different builds of llama.cpp, one per model, because the two models want different
+things from the engine.
 
 **Gemma 4 26B-A4B** is the easy one. The Google QAT (quantisation-aware training) Q4_0 build
-fits entirely in 16 GB VRAM, 13.43 GiB loaded with about 1.3 GiB of KV at 32k context, so it's
+fits entirely in 16 GB VRAM, about 13.4 GiB loaded with about 1.3 GiB of KV at 32k context, so it's
 pure GPU with no CPU offload at all. The catch is it needs sliding-window-attention KV
 compression to keep that KV small, and upstream llama.cpp implements that. The ik_llama.cpp
 fork doesn't, so on ik the same model tries to allocate 56 GB of KV at 4k tokens and just OOMs.
@@ -60,22 +50,26 @@ a more capable model and still very usable.
 So the kit ships both. Gemma 4 if you want fast and simple, Qwen3 if you want the stronger model
 and don't mind a few tok/s less.
 
-## Windows native vs WSL2
+## Native Windows, not WSL2
 
-I built and benchmarked both, same model, same commit, same flags, on the same machine. Prompt
-processing is basically identical between the two. Token generation though is meaningfully faster
-on Windows native, and the gap is bigger for Qwen3 than Gemma 4.
+I trialled WSL2 first, out of habit, and it works but it's slower and it needs a V100-specific
+hoop, so I dropped it. The hoop is that the headless SXM2 defaults to the driver's TCC mode and
+WSL2's GPU passthrough can't use TCC, so you have to flip the card to MCDM mode (a registry change
+plus a reboot) before WSL even sees it. Native Windows skips all that.
+
+And it's faster anyway. Same model, same commit, same flags, native vs WSL2 on the same box, and
+token generation is meaningfully quicker native, more so for Qwen3 than Gemma 4.
 
 | Model | Test | Windows native | WSL2 |
 |---|---|---|---|
 | Gemma 4 | TG | 56.8 tok/s | 47.0 tok/s |
 | Qwen3 | TG | 37.7 tok/s | 26.3 tok/s |
 
-That's ~21% for Gemma 4 and ~43% for Qwen3. The pattern makes sense once you think about it,
-the WSL2 GPU-PV layer adds latency on the memory-bound decode path, and Qwen3 pays it more
-because MoE expert offload means lots of GPU-to-CPU round trips, each one wearing the
-virtualisation tax. Gemma 4 is pure GPU so there's far less back and forth. If you want the most
-speed, run native, the kit covers both.
+That's ~21% for Gemma 4 and ~43% for Qwen3. The WSL2 GPU-PV layer adds latency on the
+memory-bound decode path, and Qwen3 pays it more because MoE expert offload means lots of
+GPU-to-CPU round trips, each one wearing the virtualisation tax. Gemma 4 is pure GPU so there's
+far less back and forth. So native Windows is what the kit leads with, and the Linux builds it
+ships are for actual Linux hosts, where they're the fastest path of the lot, not for WSL.
 
 ## Proving it's actually local
 
@@ -142,56 +136,58 @@ to tell it the model's context window is comfortably bigger than that or it pani
 fresh conversation and silently drops the reply. Once that's sorted it's solid. Full setup in
 the kit docs.
 
-## Dual V100 with NVLink, for multi-agent
+## Does the second card actually help?
 
-<!-- PHOTO: the dual-V100 NVLink card -->
+![Two V100s on the NVLink carrier, about 27 cm end to end](_assets/v100-kit/dual-card-dimensions-length.jpg)
 
-I built a PCIe card that mounts two V100s with an NVLink bridge between them. It bifurcates the
-slot x8/x8 and the bridge is a 2-link one, about 51 GB/s. The point of it was multi-agent serving,
-lots of concurrent requests at once, with NVLink doing the heavy lifting between the cards.
+I built a PCIe card that mounts two V100s with an NVLink bridge between them, the idea being
+multi-agent serving, lots of concurrent requests at once with NVLink doing the heavy lifting
+between the cards. First thing I got wrong: I assumed GPU-to-GPU P2P was blocked on Windows. It
+isn't. A direct `cudaMemcpyPeer` test does 33 GB/s across the bridge in TCC mode, well above the
+x8 PCIe link the slot bifurcates into, so NVLink works fine on Windows, you just have to actually
+use it. (The bridge is a 2-link one, about 51 GB/s.)
 
-First thing I got wrong: I assumed GPU-to-GPU P2P was blocked on Windows. It isn't. A direct
-`cudaMemcpyPeer` test does 33 GB/s across the bridge in TCC mode, well above the x8 PCIe link, so
-NVLink works fine on Windows, you just have to actually use it.
+So does the second card help? For a single request of a model that fits on one card (Gemma 4), no,
+one card is fastest and splitting it across two just adds sync overhead. For single-user work on a
+model that fits, the second card does nothing, don't bother.
 
-A couple of things that matter. For a single request of a model that fits on one card (Gemma 4),
-one card is fastest, splitting it across two just adds sync overhead and comes out slower. So for
-single-user work on a model that fits, the second card does nothing, don't bother.
-
-That fits-one-card bit is the catch though. Qwen3 35B doesn't fit, and that's where the second
-card earns its keep even single threaded. On one card it has to offload experts to CPU RAM, which
-is exactly what makes its Claude Code cold start so brutal, about 2.5 min to chew through that 24k
-system prompt. Put it across both cards with layer split and the whole model sits in VRAM, no CPU
-offload at all, and that same cold start drops to ~13s. Here's the project tour from earlier, same
-prompts, running Qwen3 35B on the dual card:
+The catch is that fits-one-card bit. Qwen3 35B doesn't fit, and that's where the second card earns
+its keep even single threaded. On one card it offloads experts to CPU RAM, which is what made its
+Claude Code cold start so brutal earlier, about 2.5 min on that 24k system prompt. Put it across
+both cards with layer split and the whole model sits in VRAM, no CPU offload at all, and that same
+cold start drops to ~13s. Here's the project tour from earlier, same prompts, on the dual card:
 
 ![Claude Code on dual-card Qwen3 35B, fully resident](_assets/v100-kit/claude-qwen-dual.gif)
 
 Warm turns after that are about a second. So the second card doesn't just buy you concurrency, it
 makes the bigger, stronger model genuinely pleasant single threaded, which the single card never
-managed because of all that CPU offload. Real speed, no speed-up, same as the other gifs.
+managed because of all that CPU offload.
 
-The other win is concurrency. Run the model tensor-parallel (`-sm tensor`) across both cards and throw a
-pile of requests at it and the second card earns its keep. The tricky bit is the all-reduce
-between the cards every layer, which is the thing NVLink is actually for. llama.cpp can use NCCL
-for that, but it turns out it defaults to its own internal all-reduce on Windows and only picks
-NCCL by default on Linux, so on Windows NCCL is opt-in via `GGML_CUDA_ALLREDUCE=nccl`.
+## Concurrency, NCCL and the all-reduce
+
+![Two V100s stacked on the NVLink carrier, installed in the box](_assets/v100-kit/dual-card-installed-detail.jpg)
+
+I'll be upfront, I got the headline number here wrong at first. My early benchmarks had one GPU
+thermally throttling, which dragged the baseline down and made NCCL look like a 40-50% win. Once
+the fans were sorted and I re-ran it back to back at 60-odd degrees, the real gap was more like a
+fifth of that. The throttling fooled me, the cool numbers are the ones to trust. Here's the honest
+version.
+
+The other thing the second card buys is concurrency. Run the model tensor-parallel (`-sm tensor`)
+across both cards, throw a pile of requests at it, and the second card earns its keep. The tricky
+bit is the all-reduce between the cards every layer, which is the thing NVLink is actually for.
+llama.cpp can use NCCL for that, but it defaults to its own internal all-reduce on Windows and only
+picks NCCL by default on Linux, so on Windows NCCL is opt-in via `GGML_CUDA_ALLREDUCE=nccl`.
 
 There's no NCCL for Windows from NVIDIA though, so I built one (the SystemPanic/nccl-windows port,
 compiled for sm_70) and rebuilt llama.cpp against it. With that in place NCCL runs the all-reduce
-straight over NVLink P2P, the log confirms it with `via P2P/direct pointer`. The numbers are more
-modest than I first thought though. On Qwen3 35B and Gemma at 16-32 concurrent, NCCL over NVLink is
-about 7-9% more aggregate throughput than the Windows default, and it's basically all prompt
-processing (~30% faster PP), decode comes out a wash. The NVLink bridge itself is worth a touch more
-once you isolate it, +17-21% aggregate, and tellingly NCCL with P2P disabled (all-reduce through host
-RAM) is actually slower than the built-in Windows path. So NVLink is genuinely doing the work, NCCL
-without it isn't worth having, it's just that for mixed prefill+decode load the all-reduce isn't the
-whole story.
-
-Worth being honest about how I got that number wrong at first. My early benchmarks had one GPU
-thermally throttling, which dragged the baseline down and made NCCL look like a 40-50% win. Once the
-fans were sorted and I re-ran it back to back at 60-odd degrees, the real gap was about a third of
-that. The throttling fooled me, the cool numbers are the ones to trust. (There's a prefill-heavy
+straight over NVLink P2P, the log confirms it with `via P2P/direct pointer`. At 16-32 concurrent,
+NCCL over NVLink is about 7-9% more aggregate throughput than the Windows default, and it's
+basically all prompt processing (~30-37% faster PP), decode comes out a wash, a touch behind on
+Gemma. The NVLink bridge itself is worth a bit more once you isolate it, +17-21% aggregate, and
+tellingly NCCL with P2P disabled (all-reduce through host RAM) is actually slower than the built-in
+Windows path. So NVLink is genuinely doing the work, NCCL without it isn't worth having, it's just
+that for mixed prefill+decode load the all-reduce isn't the whole story. (There's a prefill-heavy
 real-server test where it looked more like +22%, but that one predates the fan fix too, so I'd take
 it with salt until I re-run it.)
 
@@ -205,15 +201,33 @@ comms backend on Windows. Getting past that needs a torch rebuild from source, a
 vLLM's tensor-parallel wants NCCL anyway, so llama.cpp + NCCL gets to the same place with a lot
 less pain.
 
-One aside that surprised me: flipping the cards from MCDM to TCC looked like it roughly doubled
-single-card decode. I haven't pinned it down with a clean A/B yet (build and KV settings differ
-too) but if it holds it's a bigger lever than any of the multi-GPU stuff. On the list. Numbers for
-all of this are in the
+One nice surprise, the recommended native-Windows TCC mode is a lot faster for decode than MCDM. I
+ran it as a clean A/B in the end, same build, same q8_0 KV, same flags, mode the only difference:
+Gemma 4 goes from 56.8 to 99.8 tok/s (+76%) and Qwen3 from 37.7 to 54.5 (+45%) on a single card.
+TCC drops the per-kernel launch overhead that bites the launch-heavy decode loop, so the kit runs
+native TCC by default and only needs MCDM for WSL2. Full numbers for everything here are in the
 [kit benchmarks](https://github.com/andrewleech/v100-llm-kit/blob/main/docs/benchmarks.md).
+
+## Mind the power supply
+
+One bit of hard-won advice if you're running two of these. I lost a while on the dual-card box to
+spontaneous reboots, no warning, gone mid-benchmark, and after ruling out heat, the driver and
+NVLink it came down to the power supply. Not raw wattage either, it would reset at 140-150W with
+plenty of headroom on the label. It was the transient, both cards coming off idle and ramping their
+current at the same instant, and a supply that can't absorb that step browns out for a moment and
+the machine resets.
+
+![The dual card in the test box](_assets/v100-kit/dual-card-build-context.jpg)
+
+So for a dual-V100 build, don't skimp on the PSU. A single card is happy on any sensible supply, but
+two of them pull hard and pull together, so you want a good-quality unit with real headroom and
+solid transient response, not just one whose label adds up to the number. If you ever see
+unexplained reboots under sustained dual-card load, suspect the supply before the software. (Built
+machines from me are already speced for it.)
 
 ## The kit
 
 Everything's at [github.com/andrewleech/v100-llm-kit](https://github.com/andrewleech/v100-llm-kit):
-prebuilt SM_70 binaries for Windows and Linux, serve scripts, model-download helpers, and
+prebuilt SM_70 binaries for Windows and Linux (including the dual-card build with NCCL and `nccl.dll` for the NVLink path), serve scripts, model-download helpers, and
 step-by-step setup for the driver, the models, Claude Code and OpenClaw. If you grabbed a card
 from me, that's where to start.

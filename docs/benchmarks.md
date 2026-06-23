@@ -1,7 +1,8 @@
 # Benchmarks
 
-All measured on a Tesla V100-SXM2-16GB + Ryzen 9 3900X (Zen 2, 12C/24T, DDR4), MCDM driver
-mode. `llama-bench`, q8_0 KV cache, flash attention on. Your CPU and RAM speed will shift the
+All measured on a Tesla V100-SXM2-16GB + Ryzen 9 3900X (Zen 2, 12C/24T, DDR4). `llama-bench`,
+q8_0 KV cache, flash attention on. The single-card tables cover both Windows driver modes: **TCC**
+(the recommended native path) and **MCDM** (what WSL2 needs). Your CPU and RAM speed will shift the
 Qwen3 numbers (it does CPU expert compute); Gemma 4 is pure-GPU so it's mostly CPU-independent.
 
 ## Single V100
@@ -10,29 +11,29 @@ Qwen3 numbers (it does CPU expert compute); Gemma 4 is pure-GPU so it's mostly C
 
 `-ngl 99 -fa 1 -ctk q8_0 -ctv q8_0 -t 6 -p 512 -n 128`
 
-| Test | Windows native | WSL2 | CPU-only |
-|---|---|---|---|
-| pp512 | 1982 t/s | 2048 t/s | 69.7 t/s |
-| tg128 | **56.8 t/s** | 47.0 t/s | 13.1 t/s |
+| Test | Windows TCC | Windows MCDM | WSL2 | CPU-only |
+|---|---|---|---|---|
+| pp512 | 2023 t/s | 1982 t/s | 2048 t/s | 69.7 t/s |
+| tg128 | **99.8 t/s** | 56.8 t/s | 47.0 t/s | 13.1 t/s |
 
 ### Qwen3.6 35B-A3B IQ4_XS, ik_llama.cpp (commit 022bd00a)
 
 `-ngl 99 --fit 1 --fit-margin 1664 -fa 1 -ctk q8_0 -ctv q8_0 -ub 2048 -t 12 -p 512 -n 128`
 
-| Test | Windows native | WSL2 |
-|---|---|---|
-| pp512 | 460.9 t/s | 441.3 t/s |
-| tg128 | **37.7 t/s** | 26.3 t/s |
+| Test | Windows TCC | Windows MCDM | WSL2 |
+|---|---|---|---|
+| pp512 | 542 t/s | 460.9 t/s | 441.3 t/s |
+| tg128 | **54.5 t/s** | 37.7 t/s | 26.3 t/s |
 
 ## Windows native vs WSL2
 
-PP is within noise. TG is faster on Windows native, ~21% for Gemma 4, ~43% for Qwen3. The
-WSL2 GPU-PV layer taxes the memory-bound decode path, and Qwen3 pays more because MoE expert
-offload creates frequent GPU↔CPU sync points that each wear the overhead. Gemma 4 is pure-GPU
-so it sees less. Run native if you want the speed; WSL2 if you want the Linux tooling.
-
-Both tested in MCDM mode. TCC mode (Windows, no WSL) might claw back a little more on top, but
-getting MCDM back afterwards is a registry edit + reboot, so it wasn't worth measuring yet.
+PP is within noise across modes. TG is where it matters, and the recommended native-Windows **TCC**
+mode is fastest by a wide margin: Gemma 4 **99.8 tok/s** vs 56.8 in MCDM (+76%), Qwen3 **54.5** vs
+37.7 (+45%), same build, same q8_0 KV, same flags, the driver mode the only difference. TCC drops
+the WDDM/MCDM per-kernel-launch overhead that taxes the launch-heavy decode loop. MCDM (the mode
+WSL2 needs) is slower, and running under WSL2 on top of MCDM adds a little more GPU-PV latency,
+Qwen3 pays most because its MoE expert offload makes frequent GPU↔CPU syncs that each wear the tax.
+So run native TCC for speed, use MCDM / WSL2 only if you want the Linux tooling.
 
 ## Notes on the knobs
 
@@ -142,14 +143,13 @@ all-reduce is otherwise fine. NCCL confirms the transport in its log:
 Single-stream still favours one card for a model that fits 16 GB (Gemma: single 99 > tensor 76 tok/s),
 the dual-card NCCL path is specifically for **concurrency** and for models that need both cards (Qwen3 35B).
 
-### The TCC caveat (the big asterisk)
+### TCC vs MCDM (the recommended-mode delta)
 
-Single-card Gemma 4 measures **99 tok/s in TCC** here vs **56.8** in the MCDM table above. TCC
-almost certainly helps a lot, it drops the WDDM/MCDM per-kernel-launch overhead that taxes the
-launch-heavy decode loop, but this is **not a clean A/B**: the two numbers also differ in build,
-KV type (f16 vs q8_0), and thread count. If decode speed matters and you don't need WSL2, TCC looks
-clearly worth it, but the exact factor wants a controlled same-build/same-KV run under each mode.
-**TODO: clean MCDM-vs-TCC A/B on one model.**
+Clean single-card A/B, same build, same q8_0 KV, same flags, the driver mode the only variable
+(this supersedes an earlier mixed comparison that also differed in build/KV): **Gemma 4 99.8 tok/s
+in TCC vs 56.8 in MCDM (+76%), Qwen3 54.5 vs 37.7 (+45%)** (full rows in the single-card tables
+above). TCC drops the WDDM/MCDM per-kernel-launch overhead that taxes the launch-heavy decode loop.
+So native TCC is the path for decode speed, MCDM is only needed for WSL2.
 
 ### Thermals
 

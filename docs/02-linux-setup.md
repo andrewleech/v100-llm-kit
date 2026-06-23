@@ -1,4 +1,8 @@
-# 02, Linux / WSL2 setup
+# 02, Linux setup (and WSL2)
+
+For a **native Linux host** (the fastest setup of the lot) and for **WSL2** on Windows. If you're
+on Windows, prefer [native Windows](03-windows-setup.md), it's faster than WSL2, but WSL2 works and
+the steps here cover it.
 
 Two ways to go: use the prebuilt binaries from [Releases](../../releases) (easiest), or build
 from source. Both engines need CUDA 12.x, **CUDA 13.3 dropped SM_70 (Volta) support**, so the

@@ -27,9 +27,10 @@ decent CPU. Pick whichever suits, the kit serves both.
 
 ## Quick start
 
-1. **Driver:** install an **R570–R580** data-center driver (the V100's CUDA 12.8 window), then put
-   the card in MCDM mode for WSL2 (or TCC for native). See [docs/01-hardware.md](docs/01-hardware.md).
-   On Linux native you can skip the mode step.
+1. **Driver:** install an **R570–R580** data-center driver (the V100's CUDA 12.8 window). On Windows,
+   run native and leave the card in its default TCC mode, that's the recommended, fastest path; WSL2
+   also works but is slower and needs the card flipped to MCDM mode. On native Linux there's no mode
+   step. See [docs/01-hardware.md](docs/01-hardware.md).
 2. **Grab the binaries** for your OS from [Releases](../../releases), extract somewhere.
 3. **Pull a model:** `scripts/<os>/download-models.*` (needs a free Hugging Face account).
 4. **Serve it:** `scripts/<os>/serve-gemma4.*` or `serve-qwen3.*`.
@@ -39,8 +40,8 @@ decent CPU. Pick whichever suits, the kit serves both.
 ## Docs
 
 1. [Hardware & driver setup](docs/01-hardware.md)
-2. [Linux / WSL2 setup](docs/02-linux-setup.md)
-3. [Windows native setup](docs/03-windows-setup.md)
+2. [Linux setup](docs/02-linux-setup.md) (and WSL2, the slower Windows option)
+3. [Windows native setup](docs/03-windows-setup.md), recommended for Windows
 4. [Models: which, how to pull, sizing](docs/04-models.md)
 5. [Claude Code, fully local](docs/05-claude-code.md)
 6. [OpenClaw, fully local](docs/06-openclaw.md)
@@ -88,11 +89,12 @@ slot print_timing: prompt eval 23052 tokens @ 1931 tok/s | eval 201 tokens @ 52 
 
 ## How fast is it, honestly
 
-Token generation lands around 28-37 tok/s on Qwen3 and ~47-57 tok/s on Gemma 4 depending on
-context and OS. That's comfortably usable for chat and for Claude Code, slower than a frontier
-API but it's running on a card in your cupboard with nothing leaving the machine. Windows native
-is measurably quicker than WSL2 for generation (the virtualisation layer taxes the
-memory-bound decode path), numbers in [docs/benchmarks.md](docs/benchmarks.md).
+Token generation in the recommended native-Windows TCC mode lands around **~100 tok/s on Gemma 4
+and ~55 tok/s on Qwen3** at short context (less as context grows). That's comfortably usable for
+chat and for Claude Code, slower than a frontier API but it's running on a card in your cupboard
+with nothing leaving the machine. MCDM mode (and WSL2 on top of it) is meaningfully slower for
+generation, the WDDM/MCDM launch overhead and the WSL2 virtualisation layer both tax the
+memory-bound decode path (~57 tok/s Gemma, ~38 Qwen), numbers in [docs/benchmarks.md](docs/benchmarks.md).
 
 One thing worth knowing for Claude Code: it sends a big (~24k token) system prompt, and the
 server caches it after the first turn (RAM prompt cache, `-cram`). So you pay the prompt
