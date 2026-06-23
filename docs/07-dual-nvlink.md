@@ -4,7 +4,7 @@ Two V100s on one PCIe card with an NVLink bridge, for **concurrent / multi-agent
 Windows. The win comes from running the model tensor-parallel across both cards with NCCL driving
 the all-reduce over NVLink. Under concurrency this gives **~7–9% more aggregate throughput**
 (~30–37% faster prompt processing, decode about flat) than the Windows default, numbers in
-[benchmarks.md](benchmarks.md#dual-v100--nvlink--multi-agent-nccl-all-reduce).
+[benchmarks.md](benchmarks.md#dual-v100--nvlink-multi-agent-nccl-all-reduce).
 
 > **When to use this.** Multi-agent / high-concurrency, or a model too big for one 16 GB card
 > (e.g. Qwen3.6 35B fully resident). For a *single* stream of a model that fits one card, one card
