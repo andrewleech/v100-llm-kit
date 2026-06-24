@@ -181,15 +181,17 @@ hosted-frontier band:
 
 | Model | Single-stream output | Source |
 |---|---|---|
+| Claude 4.5 Haiku | 114 tok/s | Artificial Analysis, Jun 2026 |
 | Gemma 4 26B (V100, native TCC) | 99.8 tok/s | measured here |
-| GPT-5.5 | ~92 tok/s | 3rd-party, Jun 2026 |
-| Claude Opus 4.7 | ~78 tok/s | 3rd-party, Jun 2026 |
+| Claude Opus 4.8 (max) | 69 tok/s | Artificial Analysis, Jun 2026 |
+| Claude Opus 4.5 | 56 tok/s | Artificial Analysis, Jun 2026 |
+| GPT-5.5 (xhigh) | 55 tok/s | Artificial Analysis, Jun 2026 |
 | Qwen3.6 35B (V100, native TCC) | 54.5 tok/s | measured here |
-| Claude Sonnet 4.6 | ~53 tok/s | 3rd-party, Jun 2026 |
-| GPT-5.4 | ~20–30 tok/s | 3rd-party, Jun 2026 |
+| Claude Sonnet 4.6 (max) | 52 tok/s | Artificial Analysis, Jun 2026 |
 
-Gemma on the card decodes faster than several hosted models and Qwen sits mid-pack, but read it
-honestly, it's a narrow claim:
+Gemma on the card decodes faster than the full-size frontier models here (Opus, GPT-5.5, Sonnet),
+only Anthropic's small fast Haiku is quicker; Qwen sits right in the pack with Sonnet, Opus 4.5 and
+GPT-5.5. But read it honestly, it's a narrow claim:
 
 - **Decode speed only, not time-to-first-token.** Hosted APIs start answering in under a second; the
   V100's cold start is slow (Gemma ~15 s, Qwen ~2.5 min single-card on a 24k prompt), so short
@@ -199,4 +201,5 @@ honestly, it's a narrow claim:
   capability for privacy and a flat running cost, not matching them.
 - **Single stream both sides.** Hosted endpoints serve huge concurrency; these are single-request rates.
 
-Hosted figures are third-party medians (Artificial Analysis and similar, June 2026) and move with load.
+Hosted figures are Artificial Analysis provider-page medians (anthropic / openai, June 2026) and
+move with load and the effort setting.
