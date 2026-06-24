@@ -52,8 +52,8 @@ and don't mind a few tok/s less.
 
 ## Native Windows, not WSL2
 
-I trialled WSL2 first, out of habit, and it works but it's slower and it needs a V100-specific
-hoop, so I dropped it. The hoop is that the headless SXM2 defaults to the driver's TCC mode and
+I trialled WSL2 first, out of habit, and it works, it's just slower and there's a V100-specific
+hoop to jump through, so I dropped it. The headless SXM2 defaults to the driver's TCC mode, and
 WSL2's GPU passthrough can't use TCC, so you have to flip the card to MCDM mode (a registry change
 plus a reboot) before WSL even sees it. Native Windows skips all that.
 
