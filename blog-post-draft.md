@@ -74,14 +74,15 @@ ships are for actual Linux hosts, where they're the fastest path of the lot, not
 ## How it stacks up against the hosted APIs
 
 The question I get is whether it's anywhere near a hosted model for speed, and the honest answer is:
-on raw output speed, closer than you'd think. Single-stream decode, the V100 sits right in the
+on raw output speed, closer than you'd think. Single-stream decode on one card, a single V100 sits right in the
 frontier-API band, Gemma clears the full-size frontier models and only the little fast Haiku beats it:
 
 ![Single-stream decode speed, the V100 vs hosted frontier APIs](_assets/v100-kit/output-speed-vs-hosted.png)
 
 Worth being clear about what that does and doesn't say though. It's decode speed only, not
 time-to-first-token, and that's where hosted wins hands down, they answer in under a second while the
-V100's cold start is slow (the Qwen 24k-prompt cold start is minutes on a single card). Tokens aren't
+V100's cold start is slow (Qwen takes minutes on a single card to process Claude Code's ~24k-token
+startup prompt). Tokens aren't
 the same size across tokenizers, so it's indicative, not exact. And the real gap isn't speed at all,
 it's quality, the frontier models are plainly smarter, you're buying privacy and a flat running cost,
 not parity. But for the thing people assume, that a 2017 card must be glacial next to an API, the

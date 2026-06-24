@@ -174,19 +174,19 @@ clean end to end on the replacement.
 
 ## How it compares to hosted APIs
 
-The question everyone asks is raw output speed, and on a single stream the V100 sits right in the
-hosted-frontier band:
+The question everyone asks is raw output speed, and on a single stream one V100 sits right in the
+hosted-frontier band (these are single-card, native TCC, not the dual-card setup):
 
 ![Single-stream decode speed: local V100 vs hosted APIs](../assets/charts/output-speed-vs-hosted.png)
 
 | Model | Single-stream output | Source |
 |---|---|---|
 | Claude 4.5 Haiku | 114 tok/s | Artificial Analysis, Jun 2026 |
-| Gemma 4 26B (V100, native TCC) | 99.8 tok/s | measured here |
+| Gemma 4 26B (single V100, TCC) | 99.8 tok/s | measured here |
 | Claude Opus 4.8 (max) | 69 tok/s | Artificial Analysis, Jun 2026 |
 | Claude Opus 4.5 | 56 tok/s | Artificial Analysis, Jun 2026 |
 | GPT-5.5 (xhigh) | 55 tok/s | Artificial Analysis, Jun 2026 |
-| Qwen3.6 35B (V100, native TCC) | 54.5 tok/s | measured here |
+| Qwen3.6 35B (single V100, TCC) | 54.5 tok/s | measured here |
 | Claude Sonnet 4.6 (max) | 52 tok/s | Artificial Analysis, Jun 2026 |
 
 Gemma on the card decodes faster than the full-size frontier models here (Opus, GPT-5.5, Sonnet),
@@ -194,7 +194,8 @@ only Anthropic's small fast Haiku is quicker; Qwen sits right in the pack with S
 GPT-5.5. But read it honestly, it's a narrow claim:
 
 - **Decode speed only, not time-to-first-token.** Hosted APIs start answering in under a second; the
-  V100's cold start is slow (Gemma ~15 s, Qwen ~2.5 min single-card on a 24k prompt), so short
+  V100's cold start is slow (Gemma ~15 s, Qwen ~2.5 min single-card processing Claude Code's
+  ~24k-token system prompt), so short
   interactive turns still feel snappier on a hosted endpoint.
 - **Different tokenizers**, so tok/s is indicative across models, not an exact apples-to-apples unit.
 - **Quality is the real gap.** The hosted frontier models are far more capable, you're trading
