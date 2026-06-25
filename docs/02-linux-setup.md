@@ -5,8 +5,8 @@ on Windows, prefer [native Windows](03-windows-setup.md), it's faster than WSL2,
 the steps here cover it.
 
 Two ways to go: use the prebuilt binaries from [Releases](../../releases) (easiest), or build
-from source. Both engines need CUDA 12.x, **CUDA 13.3 dropped SM_70 (Volta) support**, so the
-V100 needs the 12.x line.
+from source. The card needs CUDA 12.x, **CUDA 13.3 dropped SM_70 (Volta) support**, but the
+prebuilt packs bundle the CUDA runtime, so the only thing you install for them is the driver.
 
 ## Option A, prebuilt binaries
 
@@ -14,8 +14,10 @@ V100 needs the 12.x line.
 2. Extract, you get `bin/` plus the serve scripts.
 3. [Pull a model](04-models.md), then [serve it](#serving).
 
-The binaries link against the CUDA 12.x runtime and (on WSL2) WSL's `libcuda.so.1`. The serve
-scripts set `LD_LIBRARY_PATH` for you.
+The pack's `bin/` bundles the CUDA 12.x runtime (`libcudart`/`libcublas`/`libcublasLt`) next to the
+engine libs, and the serve scripts put `bin/` first on `LD_LIBRARY_PATH`, so you only install an
+R570–R580 driver. The driver provides `libcuda.so.1` on a native host; on WSL2 it comes through
+WSL's own `libcuda.so.1`, already there. No CUDA toolkit needed for this path.
 
 ## Option B, build from source
 

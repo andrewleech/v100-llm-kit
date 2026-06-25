@@ -4,27 +4,22 @@ Windows native is the fastest path for token generation (no WSL2 virtualisation 
 [benchmarks](benchmarks.md#windows-native-vs-wsl2)). Use the prebuilt binaries, or build from
 source with MSVC.
 
-**CUDA requirement: V100 needs CUDA 12.8.** CUDA 13.3 dropped SM_70 (Volta) support. CUDA 12.x
-and 13.x install side-by-side fine.
-
-**Driver:** use an **R570–R580** data-center driver (see the driver-version note in
-[01-hardware.md](01-hardware.md)). The CUDA 12.8 installer below bundles 571.96, which is in that
-window. Don't run a driver past R580 (drops Volta) or older than R570 (won't load the CUDA 12.8
-kernels).
+**Driver, and that's the only prerequisite.** Install an **R570–R580** data-center driver (see the
+driver-version note in [01-hardware.md](01-hardware.md)). Don't run a driver past R580 (it drops
+Volta) or older than R570 (won't load the CUDA 12.8 kernels). The prebuilt packs bundle the CUDA
+12.8 runtime DLLs and the MSVC runtime, so on a fresh Windows box the driver is all you install.
+The card itself is built around CUDA 12.x, CUDA 13.3 dropped SM_70 (Volta), but you don't install
+CUDA yourself for the prebuilt path. (Building from source, Option B, does need the toolkit.)
 
 ## Option A, prebuilt binaries
 
-1. Install the CUDA 12.8 **runtime** (the serve scripts need the DLLs):
-   ```
-   https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda_12.8.0_571.96_windows.exe
-   ```
-   Run it elevated (double-click, accept UAC). Installs to
-   `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\`.
-2. Download `llama.cpp-gemma4-win-sm70.zip` and/or `ik_llama.cpp-qwen3-win-sm70.zip`, extract.
-3. [Pull a model](04-models.md), then [serve it](#serving).
+1. Download `llama.cpp-gemma4-win-sm70.zip` and/or `ik_llama.cpp-qwen3-win-sm70.zip`, extract.
+2. [Pull a model](04-models.md), then [serve it](#serving).
 
-The serve scripts prepend the CUDA 12.8 `bin` to `PATH` so the binaries find their DLLs even
-when CUDA 13.x is also installed.
+The pack's `bin/` already has the CUDA 12.8 runtime (`cudart`/`cublas`/`cublasLt`) and the MSVC
+runtime DLLs sitting next to `llama-server.exe`, and Windows loads DLLs from the exe's own folder
+first, so it runs with no CUDA install. The serve scripts still prepend a system CUDA 12.8 `bin` to
+`PATH` if you happen to have one, harmless either way.
 
 ## Option B, build from source
 

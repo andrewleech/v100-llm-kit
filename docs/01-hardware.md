@@ -83,6 +83,10 @@ Clean-install with DDU if you're coming off a newer driver, then set the mode yo
 WSL2, TCC for native multi-GPU). Check what's installed with
 `nvidia-smi --query-gpu=driver_version --format=csv,noheader`.
 
+The prebuilt release packs bundle the CUDA 12.8 runtime (and on Windows the MSVC runtime DLLs)
+right next to the binaries, so this driver is the only thing you install to run them. You only
+need the CUDA toolkit if you're building from source.
+
 ## Dual V100 + NVLink
 
 A PCIe card mounting two V100s with an NVLink bridge, for multi-agent / high-concurrency serving
@@ -109,3 +113,8 @@ For Gemma 4 (pure GPU) the CPU barely matters. For Qwen3 it does, the MoE expert
 expert FFN compute on the CPU, so memory bandwidth is the bottleneck there. The reference box is
 a Ryzen 9 3900X (Zen 2, AVX2, no AVX-512) with DDR4. A newer CPU with AVX-512 and DDR5 would
 lift the Qwen3 TG numbers a fair bit. 48 GB of RAM given to the inference process is comfortable.
+
+The prebuilt binaries need **AVX2** (Intel Haswell 2013+ / AMD Zen 2017+). They're built to an
+AVX2 + FMA + F16C + BMI2 floor so they run on any such CPU, no AVX-512 required (the reference box
+has none). That covers basically anything you'd sensibly pair with a V100, but a pre-2013 box (old
+Sandy/Ivy Bridge Xeons only have AVX, not AVX2) would need a from-source build, see [build/](../build/).

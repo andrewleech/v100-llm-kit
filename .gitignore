@@ -9,6 +9,13 @@ bin/
 *.so
 *.so.*
 
+# Assembled release packs (built by releases/build-packs.sh, uploaded as GitHub release assets)
+releases/dist/
+
+# From-source build outputs (build/ scripts + README are tracked, the build trees are not)
+build/out/
+build/*.log
+
 # Python / editor cruft
 __pycache__/
 *.pyc

@@ -10,7 +10,9 @@ it's Volta (compute 7.0, fp16 only, no bf16 or int8 tensor cores), so a fair bit
 quant advice doesn't apply. This kit is tuned around what the card can actually do.
 
 > **Hardware scope:** binaries here are built for **SM_70 (Volta / V100) only**. They won't run
-> on other GPUs without a rebuild. If you bought a card from me, these are the ones for you.
+> on other GPUs without a rebuild. If you bought a card from me, these are the ones for you. The CPU
+> side needs **AVX2** (Intel Haswell 2013+ / AMD Zen 2017+), which any sensible host pairing has,
+> build from source ([build/](build/)) if you're on something older.
 
 ## What you get
 
@@ -27,10 +29,11 @@ decent CPU. Pick whichever suits, the kit serves both.
 
 ## Quick start
 
-1. **Driver:** install an **R570–R580** data-center driver (the V100's CUDA 12.8 window). On Windows,
-   run native and leave the card in its default TCC mode, that's the recommended, fastest path; WSL2
-   also works but is slower and needs the card flipped to MCDM mode. On native Linux there's no mode
-   step. See [docs/01-hardware.md](docs/01-hardware.md).
+1. **Driver, the only thing you install:** an **R570–R580** data-center driver (the V100's CUDA 12.8
+   window). The packs bundle the CUDA runtime (and the MSVC runtime on Windows), so the driver is all
+   you need. On Windows, run native and leave the card in its default TCC mode, that's the recommended,
+   fastest path; WSL2 also works but is slower and needs the card flipped to MCDM mode. On native Linux
+   there's no mode step. See [docs/01-hardware.md](docs/01-hardware.md).
 2. **Grab the binaries** for your OS from [Releases](../../releases), extract somewhere.
 3. **Pull a model:** `scripts/<os>/download-models.*` (needs a free Hugging Face account).
 4. **Serve it:** `scripts/<os>/serve-gemma4.*` or `serve-qwen3.*`.

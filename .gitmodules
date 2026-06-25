@@ -1,0 +1,9 @@
+[submodule "external/llama.cpp"]
+	path = external/llama.cpp
+	url = https://github.com/ggml-org/llama.cpp.git
+[submodule "external/ik_llama.cpp"]
+	path = external/ik_llama.cpp
+	url = https://github.com/ikawrakow/ik_llama.cpp.git
+[submodule "external/nccl-windows"]
+	path = external/nccl-windows
+	url = https://github.com/SystemPanic/nccl-windows.git
