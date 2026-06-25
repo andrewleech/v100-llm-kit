@@ -1,6 +1,6 @@
 ---
 title: "Datacentre under the desk: your own personal AI"
-date: 2026-06-13T10:30:00+10:00
+date: 2026-06-24T23:00:00+10:00
 tags: [ai, claude, hardware, llm]
 ---
 
@@ -16,7 +16,7 @@ depending on the model, fast enough to drive Claude Code and OpenClaw with nothi
 Prebuilt binaries and scripts for Windows and Linux are at
 [github.com/andrewleech/v100-llm-kit](https://github.com/andrewleech/v100-llm-kit).
 
-![The dual-V100 NVLink card (GAI NV-V3 carrier)](_assets/v100-kit/dual-card-hero.jpg)
+![A single Tesla V100, the green Cybertank-shrouded card](_assets/v100-kit/single-card-topdown.jpg)
 
 ## Why a V100 in 2026
 
@@ -26,8 +26,6 @@ especially that's worth a fair bit, the whole repo stays local. The card's a bit
 though, it's Volta (compute 7.0), which means fp16 only, no bf16 and no int8 tensor cores. A
 lot of the modern quant advice floating around leans on those, so you can't just copy a recipe
 across, you have to build for what the card actually has.
-
-![A single V100, the green Cybertank-shrouded card](_assets/v100-kit/single-card-topdown.jpg)
 
 ## Two engines, because two model shapes
 
@@ -57,19 +55,21 @@ hoop to jump through, so I dropped it. The headless SXM2 defaults to the driver'
 WSL2's GPU passthrough can't use TCC, so you have to flip the card to MCDM mode (a registry change
 plus a reboot) before WSL even sees it. Native Windows skips all that.
 
-And it's faster anyway. Same model, same commit, same flags, native vs WSL2 on the same box, and
-token generation is meaningfully quicker native, more so for Qwen3 than Gemma 4.
+And running native in TCC is comfortably the fastest option. Same model, same commit, same flags,
+the only difference being how the GPU is driven, token generation comes out:
 
-| Model | Test | Windows native | WSL2 |
+| Model | native TCC | native MCDM | WSL2 |
 |---|---|---|---|
-| Gemma 4 | TG | 56.8 tok/s | 47.0 tok/s |
-| Qwen3 | TG | 37.7 tok/s | 26.3 tok/s |
+| Gemma 4 | 99.8 tok/s | 56.8 | 47.0 |
+| Qwen3 | 54.5 tok/s | 37.7 | 26.3 |
 
-That's ~21% for Gemma 4 and ~43% for Qwen3. The WSL2 GPU-PV layer adds latency on the
-memory-bound decode path, and Qwen3 pays it more because MoE expert offload means lots of
-GPU-to-CPU round trips, each one wearing the virtualisation tax. Gemma 4 is pure GPU so there's
-far less back and forth. So native Windows is what the kit leads with, and the Linux builds it
-ships are for actual Linux hosts, where they're the fastest path of the lot, not for WSL.
+TCC is the big jump, +76% on Gemma 4 and +45% on Qwen3 over MCDM, because it drops a per-kernel
+launch overhead that bites the launch-heavy decode loop. MCDM, the mode WSL2 needs, is slower than
+that, and WSL2 on top adds the virtualisation tax of its GPU passthrough, which Qwen3 feels most
+because its expert offload means constant GPU-to-CPU round trips each paying the tax. So the kit
+runs native TCC by default, and the Linux builds it ships are for actual Linux hosts, where they're
+the fastest path of the lot, not for WSL. Full numbers are in the
+[kit benchmarks](https://github.com/andrewleech/v100-llm-kit/blob/main/docs/benchmarks.md).
 
 ## How it stacks up against the hosted APIs
 
@@ -81,8 +81,8 @@ frontier-API band, Gemma clears the full-size frontier models and only the littl
 
 Worth being clear about what that does and doesn't say though. It's decode speed only, not
 time-to-first-token, and that's where hosted wins hands down, they answer in under a second while the
-V100's cold start is slow (Qwen takes minutes on a single card to process Claude Code's ~24k-token
-startup prompt). Tokens aren't
+V100's cold start is slow (Qwen takes minutes on a single card to process an agent's ~24k-token
+system prompt). Tokens aren't
 the same size across tokenizers, so it's indicative, not exact. And the real gap isn't speed at all,
 it's quality, the frontier models are plainly smarter, you're buying privacy and a flat running cost,
 not parity. But for the thing people assume, that a 2017 card must be glacial next to an API, the
@@ -156,7 +156,7 @@ the kit docs.
 
 ## Does the second card actually help?
 
-![Two V100s on the NVLink carrier, about 27 cm end to end](_assets/v100-kit/dual-card-dimensions-length.jpg)
+![The dual-V100 card, two V100s on the GAI NV-V3 NVLink carrier](_assets/v100-kit/dual-card-hero.jpg)
 
 I built a PCIe card that mounts two V100s with an NVLink bridge between them, the idea being
 multi-agent serving, lots of concurrent requests at once with NVLink doing the heavy lifting
@@ -185,12 +185,6 @@ managed because of all that CPU offload.
 
 ![Two V100s stacked on the NVLink carrier, installed in the box](_assets/v100-kit/dual-card-installed-detail.jpg)
 
-I'll be upfront, I got the headline number here wrong at first. My early benchmarks had one GPU
-thermally throttling, which dragged the baseline down and made NCCL look like a 40-50% win. Once
-the fans were sorted and I re-ran it back to back at 60-odd degrees, the real gap was more like a
-fifth of that. The throttling fooled me, the cool numbers are the ones to trust. Here's the honest
-version.
-
 The other thing the second card buys is concurrency, running a whole pile of requests at once.
 That's the real win for agentic work, where you might have a dozen subagents all going at the same
 time. To do it you split the model across both cards, and as they work they have to keep swapping
@@ -201,7 +195,10 @@ machine to talk to each other.
 There's a catch on Windows. The NVIDIA library that drives that card-to-card link doesn't ship for
 Windows and isn't switched on by default, so I built it myself and rebuilt llama.cpp to use it.
 With that in place the cards talk straight over the bridge, and I'll be honest, the payoff was
-smaller than I expected. Running 16 to 32 requests at once, going over the bridge is about 7-9% more
+smaller than I expected, and I nearly got it wrong. My first benchmarks had one GPU thermally
+throttling, which dragged the baseline down and made the bridge look like a 40-50% win; once the
+fans were sorted and I re-ran cool, back to back, the real gap was about a fifth of that. Running
+16 to 32 requests at once, going over the bridge is about 7-9% more
 total throughput than the default path, and nearly all of that is reading the prompt faster, the
 actual answer-writing speed barely moves. The bridge on its own is worth a bit more if you isolate
 it, closer to +17-21%, and tellingly, without the bridge that same library is actually slower than
@@ -216,13 +213,6 @@ comms backend on Windows. Getting past that needs a torch rebuild from source, a
 vLLM's tensor-parallel wants NCCL anyway, so llama.cpp + NCCL gets to the same place with a lot
 less pain.
 
-One nice surprise, the recommended native-Windows TCC mode is a lot faster for decode than MCDM. I
-ran it as a clean A/B in the end, same build, same q8_0 KV, same flags, mode the only difference:
-Gemma 4 goes from 56.8 to 99.8 tok/s (+76%) and Qwen3 from 37.7 to 54.5 (+45%) on a single card.
-TCC drops the per-kernel launch overhead that bites the launch-heavy decode loop, so the kit runs
-native TCC by default and only needs MCDM for WSL2. Full numbers for everything here are in the
-[kit benchmarks](https://github.com/andrewleech/v100-llm-kit/blob/main/docs/benchmarks.md).
-
 ## Mind the power supply
 
 One bit of hard-won advice if you're running two of these. The box started out on an older supply,
@@ -231,8 +221,6 @@ out heat, the driver and NVLink it came down to that supply. Not raw wattage eit
 at 140-150W with plenty of headroom on the label. It was the transient, both cards coming off idle
 and ramping their current at the same instant, and an older supply that can't absorb that step
 browns out for a moment and the machine resets.
-
-![The dual card in the test box](_assets/v100-kit/dual-card-build-context.jpg)
 
 Swapping that old supply for a Corsair RM850, an 850 W unit with the transient response to soak up
 the step, fixed it outright, the reboots stopped dead. So for a dual-V100 build, don't skimp on the
