@@ -240,8 +240,9 @@ the machine resets.
 So for a dual-V100 build, don't skimp on the PSU. A single card is happy on any sensible supply, but
 two of them pull hard and pull together, so you want a good-quality unit with real headroom and
 solid transient response, not just one whose label adds up to the number. If you ever see
-unexplained reboots under sustained dual-card load, suspect the supply before the software. (Built
-machines from me are already speced for it.)
+unexplained reboots under sustained dual-card load, suspect the supply before the software. For
+reference, this box runs a Corsair RM850, an 850 W unit with the transient response to absorb that
+step. (Built machines from me are speced the same way.)
 
 Once the supply was sorted, the same load that used to kill the box ran a full 25-minute soak
 without a hiccup, both cards holding ~58-65 °C the whole way:
