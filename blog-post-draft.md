@@ -225,24 +225,24 @@ native TCC by default and only needs MCDM for WSL2. Full numbers for everything 
 
 ## Mind the power supply
 
-One bit of hard-won advice if you're running two of these. I lost a while on the dual-card box to
-spontaneous reboots, no warning, gone mid-benchmark, and after ruling out heat, the driver and
-NVLink it came down to the power supply. Not raw wattage either, it would reset at 140-150W with
-plenty of headroom on the label. It was the transient, both cards coming off idle and ramping their
-current at the same instant, and a supply that can't absorb that step browns out for a moment and
-the machine resets.
+One bit of hard-won advice if you're running two of these. The box started out on an older supply,
+and on the dual card it kept spontaneously rebooting, no warning, gone mid-benchmark. After ruling
+out heat, the driver and NVLink it came down to that supply. Not raw wattage either, it would reset
+at 140-150W with plenty of headroom on the label. It was the transient, both cards coming off idle
+and ramping their current at the same instant, and an older supply that can't absorb that step
+browns out for a moment and the machine resets.
 
 ![The dual card in the test box](_assets/v100-kit/dual-card-build-context.jpg)
 
-So for a dual-V100 build, don't skimp on the PSU. A single card is happy on any sensible supply, but
-two of them pull hard and pull together, so you want a good-quality unit with real headroom and
-solid transient response, not just one whose label adds up to the number. If you ever see
-unexplained reboots under sustained dual-card load, suspect the supply before the software. For
-reference, this box runs a Corsair RM850, an 850 W unit with the transient response to absorb that
-step. (Built machines from me are speced the same way.)
+Swapping that old supply for a Corsair RM850, an 850 W unit with the transient response to soak up
+the step, fixed it outright, the reboots stopped dead. So for a dual-V100 build, don't skimp on the
+PSU. A single card is happy on any sensible supply, but two of them pull hard and pull together, so
+you want a good-quality unit with real headroom and solid transient response, not just one whose
+label adds up to the number. If you ever see unexplained reboots under sustained dual-card load,
+suspect the supply before the software. (Built machines from me ship with the RM850 or equivalent.)
 
-Once the supply was sorted, the same load that used to kill the box ran a full 25-minute soak
-without a hiccup, both cards holding ~58-65 °C the whole way:
+With the RM850 in, the same load that used to kill the box ran a full 25-minute soak without a
+hiccup, both cards holding ~58-65 °C the whole way:
 
 ![Dual-V100 25-minute soak, temperature holding steady](_assets/v100-kit/dual-soak-thermals.png)
 
