@@ -181,7 +181,7 @@ Warm turns after that are about a second. So the second card doesn't just buy yo
 makes the bigger, stronger model genuinely pleasant single threaded, which the single card never
 managed because of all that CPU offload.
 
-## Concurrency, NCCL and the all-reduce
+## Running lots of agents at once
 
 ![Two V100s stacked on the NVLink carrier, installed in the box](_assets/v100-kit/dual-card-installed-detail.jpg)
 
@@ -191,27 +191,24 @@ the fans were sorted and I re-ran it back to back at 60-odd degrees, the real ga
 fifth of that. The throttling fooled me, the cool numbers are the ones to trust. Here's the honest
 version.
 
-The other thing the second card buys is concurrency. Run the model tensor-parallel (`-sm tensor`)
-across both cards, throw a pile of requests at it, and the second card earns its keep. The tricky
-bit is the all-reduce between the cards every layer, which is the thing NVLink is actually for.
-llama.cpp can use NCCL for that, but it defaults to its own internal all-reduce on Windows and only
-picks NCCL by default on Linux, so on Windows NCCL is opt-in via `GGML_CUDA_ALLREDUCE=nccl`.
+The other thing the second card buys is concurrency, running a whole pile of requests at once.
+That's the real win for agentic work, where you might have a dozen subagents all going at the same
+time. To do it you split the model across both cards, and as they work they have to keep swapping
+data back and forth. That constant chatter is exactly what the NVLink bridge between the two cards
+is for, a fast direct link so the cards don't have to go the long way round through the rest of the
+machine to talk to each other.
 
-There's no NCCL for Windows from NVIDIA though, so I built one (the SystemPanic/nccl-windows port,
-compiled for sm_70) and rebuilt llama.cpp against it. With that in place NCCL runs the all-reduce
-straight over NVLink P2P, the log confirms it with `via P2P/direct pointer`. At 16-32 concurrent,
-NCCL over NVLink is about 7-9% more aggregate throughput than the Windows default, and it's
-basically all prompt processing (~30-37% faster PP), decode comes out a wash, a touch behind on
-Gemma. The NVLink bridge itself is worth a bit more once you isolate it, +17-21% aggregate, and
-tellingly NCCL with P2P disabled (all-reduce through host RAM) is actually slower than the built-in
-Windows path. So NVLink is genuinely doing the work, NCCL without it isn't worth having, it's just
-that for mixed prefill+decode load the all-reduce isn't the whole story. (There's a prefill-heavy
-real-server test where it looked more like +22%, but that one predates the fan fix too, so I'd take
-it with salt until I re-run it.)
-
-So for a Windows box doing multi-agent: nccl-windows + llama.cpp built with NCCL, `-sm tensor`,
-`GGML_CUDA_ALLREDUCE=nccl`, `--parallel N`. All native Windows, no Linux required, build steps are
-in the kit ([docs/07](https://github.com/andrewleech/v100-llm-kit/blob/main/docs/07-dual-nvlink.md)).
+There's a catch on Windows. The NVIDIA library that drives that card-to-card link doesn't ship for
+Windows and isn't switched on by default, so I built it myself and rebuilt llama.cpp to use it.
+With that in place the cards talk straight over the bridge, and I'll be honest, the payoff was
+smaller than I expected. Running 16 to 32 requests at once, going over the bridge is about 7-9% more
+total throughput than the default path, and nearly all of that is reading the prompt faster, the
+actual answer-writing speed barely moves. The bridge on its own is worth a bit more if you isolate
+it, closer to +17-21%, and tellingly, without the bridge that same library is actually slower than
+the plain Windows default. So the bridge really is doing the work, it's just a modest lever for this
+mix of reading and writing, the big win is simply being able to run all those agents at once. The
+build steps and the exact settings are in the kit
+([docs/07](https://github.com/andrewleech/v100-llm-kit/blob/main/docs/07-dual-nvlink.md)).
 
 vLLM would be the stronger throughput engine and I had a real go at it. It builds on Windows for
 sm_70, which I'm pretty sure is a first, but it won't actually run, torch's gloo can't bring up its
