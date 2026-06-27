@@ -20,8 +20,9 @@ Prebuilt binaries and scripts for Windows and Linux are at
 
 ## Why a V100 in 2026
 
-The honest answer is price. Frontier API models are better, no argument, but a V100 you own
-runs forever with no subscription fees and never sends a token off the box. For coding agents
+The honest answer is price. These have got cheap, AU$720 for a single tested card with quiet
+cooling, AU$1,550 for the dual with the NVLink bridge, and a V100 you own runs forever with no
+subscription fees and never sends a token off the box. For coding agents
 especially that's worth a fair bit, the whole repo stays local. The card's a bit awkward
 though, it's Volta (compute 7.0), which means fp16 only, no bf16 and no int8 tensor cores. A
 lot of the modern quant advice floating around leans on those, so you can't just copy a recipe
@@ -73,9 +74,10 @@ the fastest path of the lot, not for WSL. Full numbers are in the
 
 ## How it stacks up against the hosted APIs
 
-The question I get is whether it's anywhere near a hosted model for speed, and the honest answer is:
-on raw output speed, closer than you'd think. Single-stream decode on one card, a single V100 sits right in the
-frontier-API band, Gemma clears the full-size frontier models and only the little fast Haiku beats it:
+The question I get is whether it's anywhere near a hosted model for speed. On single-stream output
+speed, closer than you'd think, though, as I'll get to, raw speed isn't really the reason to do this.
+Single-stream decode on a single V100 sits right in the frontier-API band, Gemma clears the
+full-size frontier models and only the little fast Haiku beats it:
 
 ![Single-stream decode speed, the V100 vs hosted frontier APIs](_assets/v100-kit/output-speed-vs-hosted.png)
 
@@ -156,11 +158,13 @@ the kit docs.
 
 ## Does the second card actually help?
 
-![The dual-V100 card, two V100s on the GAI NV-V3 NVLink carrier](_assets/v100-kit/dual-card-hero.jpg)
-
 I built a PCIe card that mounts two V100s with an NVLink bridge between them, the idea being
 multi-agent serving, lots of concurrent requests at once with NVLink doing the heavy lifting
-between the cards. First thing I got wrong: I assumed GPU-to-GPU P2P was blocked on Windows. It
+between the cards.
+
+![The dual-V100 card, two V100s on the GAI NV-V3 NVLink carrier](_assets/v100-kit/dual-card-hero.jpg)
+
+First thing I got wrong: I assumed GPU-to-GPU P2P was blocked on Windows. It
 isn't. A direct `cudaMemcpyPeer` test does 33 GB/s across the bridge in TCC mode, well above the
 x8 PCIe link the slot bifurcates into, so NVLink works fine on Windows, you just have to actually
 use it. (The bridge is a 2-link one, about 51 GB/s.)
@@ -183,28 +187,37 @@ managed because of all that CPU offload.
 
 ## Running lots of agents at once
 
-![Two V100s stacked on the NVLink carrier, installed in the box](_assets/v100-kit/dual-card-installed-detail.jpg)
-
 The other thing the second card buys is concurrency, running a whole pile of requests at once.
 That's the real win for agentic work, where you might have a dozen subagents all going at the same
-time. To do it you split the model across both cards, and as they work they have to keep swapping
-data back and forth. That constant chatter is exactly what the NVLink bridge between the two cards
-is for, a fast direct link so the cards don't have to go the long way round through the rest of the
+time.
+
+![Two V100s stacked on the NVLink carrier, installed in the box](_assets/v100-kit/dual-card-installed-detail.jpg)
+
+To do it you split the model across both cards, and as they work they have to keep swapping data
+back and forth. That constant chatter is exactly what the NVLink bridge between the two cards is
+for, a fast direct link so the cards don't have to go the long way round through the rest of the
 machine to talk to each other.
 
 There's a catch on Windows. The NVIDIA library that drives that card-to-card link doesn't ship for
 Windows and isn't switched on by default, so I built it myself and rebuilt llama.cpp to use it.
-With that in place the cards talk straight over the bridge, and I'll be honest, the payoff was
-smaller than I expected, and I nearly got it wrong. My first benchmarks had one GPU thermally
-throttling, which dragged the baseline down and made the bridge look like a 40-50% win; once the
-fans were sorted and I re-ran cool, back to back, the real gap was about a fifth of that. Running
-16 to 32 requests at once, going over the bridge is about 7-9% more
-total throughput than the default path, and nearly all of that is reading the prompt faster, the
-actual answer-writing speed barely moves. The bridge on its own is worth a bit more if you isolate
-it, closer to +17-21%, and tellingly, without the bridge that same library is actually slower than
-the plain Windows default. So the bridge really is doing the work, it's just a modest lever for this
-mix of reading and writing, the big win is simply being able to run all those agents at once. The
-build steps and the exact settings are in the kit
+With that in place the cards talk straight over the bridge.
+
+I'll be honest, the payoff was smaller than I expected, and I nearly got it wrong. My first
+benchmarks had one GPU thermally throttling, which dragged the baseline down and made the bridge
+look like a 40-50% win; once the fans were sorted and I re-ran cool, back to back, the real gap was
+about a fifth of that. Running 16 to 32 requests at once:
+
+| Config (16-32 concurrent) | vs Windows default |
+|---|---|
+| NVLink bridge (NCCL), end to end | +7-9% throughput |
+| Bridge contribution, isolated | +17-21% |
+| NCCL with the bridge disabled | slower than default |
+
+Nearly all of that gain is reading the prompt faster, the actual answer-writing speed barely moves.
+That last row is the tell: without the bridge the same library is slower than the plain Windows
+default, so the bridge really is doing the work. It's a modest lever for this mix of reading and
+writing, the big win is simply being able to run all those agents at once. The build steps and the
+exact settings are in the kit
 ([docs/07](https://github.com/andrewleech/v100-llm-kit/blob/main/docs/07-dual-nvlink.md)).
 
 vLLM would be the stronger throughput engine and I had a real go at it. It builds on Windows for
