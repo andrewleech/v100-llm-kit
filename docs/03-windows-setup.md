@@ -52,6 +52,8 @@ The serve scripts handle this automatically.
 
 ## Serving
 
+cmd (`.bat`):
+
 ```
 serve-gemma4.bat                       :: Gemma 4, 32k context, port 8011
 serve-qwen3.bat                        :: Qwen3, 128k context, port 8001
@@ -59,6 +61,18 @@ set CTX=32768 & serve-qwen3.bat        :: smaller context
 serve-qwen3.bat --jinja                :: tool calling on (for Claude Code)
 set PORT=8080 & serve-qwen3.bat        :: override port
 ```
+
+PowerShell (`.ps1`, same behaviour and env-var overrides):
+
+```powershell
+.\serve-qwen3.ps1                       # Qwen3, 128k context, port 8001
+$env:CTX=32768; .\serve-qwen3.ps1       # smaller context
+.\serve-qwen3.ps1 --jinja               # tool calling on (for Claude Code)
+$env:PORT=8080; .\serve-qwen3.ps1       # override port
+```
+
+For driving Claude Code against the server (the `claude-code.ps1` / `claude-code.sh` launchers,
+and the WSL mirrored-networking requirement), see [05-claude-code.md](05-claude-code.md).
 
 ## A note on driver mode
 

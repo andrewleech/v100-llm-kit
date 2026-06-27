@@ -148,6 +148,6 @@
     {{- '<|im_start|>assistant\n' }}
     {#- Thinking hardcoded OFF: the server injects enable_thinking=true by default, so we
         ignore it and always emit a closed (empty) think block. Far snappier for Claude Code.
-        For the thinking variant, use qwen3-template-patched.jinja instead. #}
+        For the thinking variant, use qwen3-template-think.jinja instead. #}
     {{- '<think>\n\n</think>\n\n' }}
 {%- endif %}

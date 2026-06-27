@@ -132,7 +132,11 @@ build_llama_win() {
   cp1 "$SCRIPTS/windows/$serve" "$d/"
   cp1 "$SCRIPTS/windows/download-models.bat" "$d/"
   shift 2
-  for f in "$@"; do cp1 "$SCRIPTS/windows/$f" "$d/"; done
+  # Extra files resolve from scripts/windows, falling back to scripts/wsl (claude-code.sh).
+  for f in "$@"; do
+    if [ -f "$SCRIPTS/windows/$f" ]; then cp1 "$SCRIPTS/windows/$f" "$d/"
+    else cp1 "$SCRIPTS/wsl/$f" "$d/"; fi
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -150,9 +154,12 @@ build_ik_win() {
   for f in "${CUDA_WIN_DLLS[@]}"; do cp1 "$CUDA_WIN_BIN/$f" "$b/"; done
   for f in "${MSVC_DLLS[@]}"; do cp1 "$WIN_SYS32/$f" "$b/"; done
   cp1 "$SCRIPTS/windows/serve-qwen3.bat" "$d/"
+  cp1 "$SCRIPTS/windows/serve-qwen3.ps1" "$d/"
+  cp1 "$SCRIPTS/windows/claude-code.ps1" "$d/"
+  cp1 "$SCRIPTS/wsl/claude-code.sh" "$d/"
   cp1 "$SCRIPTS/windows/download-models.bat" "$d/"
   cp1 "$SCRIPTS/windows/qwen3-template-nothink.jinja" "$d/"
-  cp1 "$SCRIPTS/windows/qwen3-template-patched.jinja" "$d/"
+  cp1 "$SCRIPTS/windows/qwen3-template-think.jinja" "$d/"
 }
 
 # ---------------------------------------------------------------------------
@@ -178,6 +185,7 @@ build_llama_linux() {
   for f in "${CUDA_LIN_SOS[@]}"; do cp1 "$CUDA_LIN_LIB/$f" "$b/"; done
   cp1 "$SCRIPTS/linux/serve-gemma4.sh" "$d/"
   cp1 "$SCRIPTS/linux/download-models.sh" "$d/"
+  cp1 "$SCRIPTS/wsl/claude-code.sh" "$d/"
   cp1 "$SCRIPTS/linux/gemma4-template-nothink.jinja" "$d/"
   chmod +x "$b"/llama-server "$b"/llama-cli "$b"/llama-bench "$d"/*.sh
 }
@@ -198,8 +206,9 @@ build_ik_linux() {
   for f in "${CUDA_LIN_SOS[@]}"; do cp1 "$CUDA_LIN_LIB/$f" "$b/"; done
   cp1 "$SCRIPTS/linux/serve-qwen3.sh" "$d/"
   cp1 "$SCRIPTS/linux/download-models.sh" "$d/"
+  cp1 "$SCRIPTS/wsl/claude-code.sh" "$d/"
   cp1 "$SCRIPTS/linux/qwen3-template-nothink.jinja" "$d/"
-  cp1 "$SCRIPTS/linux/qwen3-template-patched.jinja" "$d/"
+  cp1 "$SCRIPTS/linux/qwen3-template-think.jinja" "$d/"
   chmod +x "$b"/llama-server "$b"/llama-cli "$b"/llama-bench "$d"/*.sh
 }
 
@@ -210,7 +219,8 @@ prov_ik_lin="ik_llama.cpp commit ${ver_ik_lin}, CUDA 12.x, SM_70, -DGGML_CUDA_FO
 prov_dual="$prov_llama_win Built with NCCL (SystemPanic/nccl-windows, sm_70), nccl.dll bundled in bin/."
 
 echo "[1/5] llama.cpp-gemma4-win-sm70"
-build_llama_win   llama.cpp-gemma4-win-sm70 serve-gemma4.bat gemma4-template-nothink.jinja
+build_llama_win   llama.cpp-gemma4-win-sm70 serve-gemma4.bat \
+                  serve-gemma4.ps1 claude-code.ps1 claude-code.sh gemma4-template-nothink.jinja
 write_readme "$STAGE/llama.cpp-gemma4-win-sm70" "Gemma 4 26B-A4B  --  Windows native" "$prov_llama_win"
 zip_pack llama.cpp-gemma4-win-sm70
 
@@ -231,7 +241,7 @@ zip_pack ik_llama.cpp-qwen3-linux-sm70
 
 echo "[5/5] llama.cpp-dual-nvlink-win-sm70"
 build_llama_win   llama.cpp-dual-nvlink-win-sm70 serve-dual-nccl.bat \
-                  qwen3-template-nothink.jinja qwen3-template-patched.jinja
+                  qwen3-template-nothink.jinja qwen3-template-think.jinja
 write_readme "$STAGE/llama.cpp-dual-nvlink-win-sm70" "Dual V100 + NVLink (multi-agent)  --  Windows native" "$prov_dual"
 zip_pack llama.cpp-dual-nvlink-win-sm70
 
