@@ -241,7 +241,7 @@ zip_pack ik_llama.cpp-qwen3-linux-sm70
 
 echo "[5/5] llama.cpp-dual-nvlink-win-sm70"
 build_llama_win   llama.cpp-dual-nvlink-win-sm70 serve-dual-nccl.bat \
-                  bench-kv-fit.ps1 qwen3-template-nothink.jinja qwen3-template-think.jinja
+                  serve-dual-nccl.ps1 bench-kv-fit.ps1 qwen3-template-nothink.jinja qwen3-template-think.jinja
 write_readme "$STAGE/llama.cpp-dual-nvlink-win-sm70" "Dual V100 + NVLink (multi-agent)  --  Windows native" "$prov_dual"
 zip_pack llama.cpp-dual-nvlink-win-sm70
 

@@ -4,25 +4,31 @@
 :: and meaningfully higher decode throughput under concurrency vs the Windows-default
 :: ("internal") all-reduce. See docs/benchmarks.md "Dual V100 + NVLink (multi-agent)".
 ::
+:: Each of PARALLEL slots gets SLOTCTX tokens (total -c = PARALLEL*SLOTCTX). Default q4_0 KV
+:: (measured quality-safe) so a full 262k per slot fits: 4 agents x 262k loads at ~29 GB / 32 GB.
+:: For more agents trade context down, e.g. set PARALLEL=8 ^& set SLOTCTX=131072.
+::
 :: Requires:
 ::   - The NCCL-enabled llama.cpp build (built with -DGGML_CUDA_NCCL=ON against nccl-windows).
 ::   - nccl.dll present in %BIN_DIR% (beside llama-server.exe). Ships in the dual-card release.
 ::   - Both cards in TCC (or MCDM) with the NVLink bridge active (nvidia-smi nvlink --status).
 ::
 :: Usage:
-::   serve-dual-nccl.bat                         (defaults: Qwen3.6 35B, 8 parallel slots)
-::   set MODEL=...gguf ^& serve-dual-nccl.bat
-::   set PARALLEL=16 ^& set CTX=32768 ^& serve-dual-nccl.bat
-::   set ALLREDUCE=internal ^& serve-dual-nccl.bat   (A/B vs NCCL; default nccl)
+::   serve-dual-nccl.bat                                       (4 agents x 262k, q4_0 KV)
+::   set PARALLEL=8 ^& set SLOTCTX=131072 ^& serve-dual-nccl.bat   (8 agents x 128k)
+::   set KV=q8_0 ^& serve-dual-nccl.bat                         (lossless KV; use smaller SLOTCTX)
+::   set CTX=262144 ^& serve-dual-nccl.bat                      (set total -c directly; overrides SLOTCTX)
+::   set ALLREDUCE=internal ^& serve-dual-nccl.bat              (A/B vs NCCL; default nccl)
 setlocal enabledelayedexpansion
 cd /d "%~dp0."
 
 if "%BIN_DIR%"=="" set BIN_DIR=%~dp0bin
 if "%MODEL%"=="" set MODEL=%~dp0models\qwen3.6-35b-a3b-MTP-GGUF\Qwen3.6-35B-A3B-IQ4_XS-4.19bpw.gguf
 if "%PORT%"=="" set PORT=8011
-if "%CTX%"=="" set CTX=32768
-if "%PARALLEL%"=="" set PARALLEL=8
-if "%KV%"=="" set KV=q8_0
+if "%PARALLEL%"=="" set PARALLEL=4
+if "%SLOTCTX%"=="" set SLOTCTX=262144
+if "%CTX%"=="" set /a CTX=PARALLEL*SLOTCTX
+if "%KV%"=="" set KV=q4_0
 if "%THREADS%"=="" set THREADS=12
 if "%ALLREDUCE%"=="" set ALLREDUCE=nccl
 
@@ -44,7 +50,7 @@ set GGML_CUDA_ALLREDUCE=%ALLREDUCE%
 :: NCCL_SOCKET_IFNAME for your box (run: nvidia-smi / ipconfig to find the LAN adapter name).
 if "%NCCL_SOCKET_IFNAME%"=="" set NCCL_SOCKET_IFNAME=Ethernet
 
-echo serving %MODEL% across 2 GPUs: -sm tensor, allreduce=%ALLREDUCE%, parallel=%PARALLEL%, ctx=%CTX%, port=%PORT%
+echo serving %MODEL% across 2 GPUs: -sm tensor, allreduce=%ALLREDUCE%, parallel=%PARALLEL%, slotctx=%SLOTCTX%, ctx=%CTX%, kv=%KV%, port=%PORT%
 "%BIN_DIR%\llama-server.exe" ^
   -m "%MODEL%" ^
   --host 0.0.0.0 --port %PORT% ^

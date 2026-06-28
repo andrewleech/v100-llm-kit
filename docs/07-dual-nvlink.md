@@ -73,14 +73,20 @@ these binaries + `nccl.dll` already.
 
 ```bat
 scripts\windows\serve-dual-nccl.bat
-:: defaults: Qwen3.6 35B, -sm tensor across both cards, GGML_CUDA_ALLREDUCE=nccl, 8 parallel slots
-set PARALLEL=16 & set CTX=32768 & serve-dual-nccl.bat
-set ALLREDUCE=internal & serve-dual-nccl.bat   (A/B against the non-NCCL default)
-set KV=q4_0 & serve-dual-nccl.bat              (half-size KV: ~2x context/agents, some quality loss)
+:: default: Qwen3.6 35B, -sm tensor, NCCL, q4_0 KV, 4 slots x 262k context each
+::   (loads at ~29 GB / 32 GB, measured). PowerShell: .\serve-dual-nccl.ps1
+set PARALLEL=8 & set SLOTCTX=131072 & serve-dual-nccl.bat   :: 8 agents x 128k instead
+set KV=q8_0 & serve-dual-nccl.bat                :: lossless KV (use a smaller SLOTCTX)
+set ALLREDUCE=internal & serve-dual-nccl.bat     :: A/B against the non-NCCL default
 ```
-Key knobs the script sets: `-sm tensor -ts 1/1` (tensor-parallel, even split),
-`GGML_CUDA_ALLREDUCE=nccl`, `--parallel N --cont-batching` (the concurrency that makes NVLink pay).
-`KV` selects the KV-cache quant (`q8_0` default, `q4_0` halves KV VRAM, `f16` for max quality).
+Each of `PARALLEL` slots gets `SLOTCTX` tokens (total `-c` = `PARALLEL` x `SLOTCTX`); the primary
+agent and every subagent share this one pool, one slot each. Other knobs: `-sm tensor -ts 1/1`
+(tensor-parallel, even split), `GGML_CUDA_ALLREDUCE=nccl`, `--parallel N --cont-batching` (the
+concurrency that makes NVLink pay). `KV` is the KV-cache quant (`q4_0` default — measured
+quality-safe, byte-identical recall to f16 at 61k context; `q8_0` lossless; `f16` largest).
+
+> Measured cold-start: a fresh 24k-token prompt prefills in ~13 s (~1,740 tok/s PP) per slot's
+> first turn; subsequent turns on that slot reuse the prefix and are fast.
 
 **How many concurrent agents fit?** `-c` is the *total* context, split across `--parallel` slots
 (per-slot = `-c` / N), and llama.cpp does **not** share a common system-prompt prefix across slots,
