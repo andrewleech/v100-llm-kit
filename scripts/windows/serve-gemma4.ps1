@@ -18,6 +18,7 @@ $Model   = if ($env:MODEL)   { $env:MODEL }   else { Join-Path $here 'models\gem
 $Port    = if ($env:PORT)    { $env:PORT }    else { '8011' }
 $Ctx     = if ($env:CTX)     { $env:CTX }     else { '32768' }
 $Threads = if ($env:THREADS) { $env:THREADS } else { '6' }
+$Kv      = if ($env:KV)      { $env:KV }      else { 'q8_0' }
 
 $cudaBin = 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\bin'
 if (Test-Path (Join-Path $cudaBin 'cudart64_12.dll')) { $env:PATH = "$cudaBin;$env:PATH" }
@@ -42,7 +43,7 @@ Write-Host "serving gemma4 ctx=$Ctx port=$Port"
     --host 0.0.0.0 --port $Port `
     -ngl 99 -fa 1 `
     -b 2048 -ub 1024 `
-    -ctk q8_0 -ctv q8_0 `
+    -ctk $Kv -ctv $Kv `
     -c $Ctx `
     -t $Threads `
     --parallel 1 --metrics `

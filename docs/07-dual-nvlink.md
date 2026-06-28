@@ -76,9 +76,31 @@ scripts\windows\serve-dual-nccl.bat
 :: defaults: Qwen3.6 35B, -sm tensor across both cards, GGML_CUDA_ALLREDUCE=nccl, 8 parallel slots
 set PARALLEL=16 & set CTX=32768 & serve-dual-nccl.bat
 set ALLREDUCE=internal & serve-dual-nccl.bat   (A/B against the non-NCCL default)
+set KV=q4_0 & serve-dual-nccl.bat              (half-size KV: ~2x context/agents, some quality loss)
 ```
 Key knobs the script sets: `-sm tensor -ts 1/1` (tensor-parallel, even split),
 `GGML_CUDA_ALLREDUCE=nccl`, `--parallel N --cont-batching` (the concurrency that makes NVLink pay).
+`KV` selects the KV-cache quant (`q8_0` default, `q4_0` halves KV VRAM, `f16` for max quality).
+
+**How many concurrent agents fit?** `-c` is the *total* context, split across `--parallel` slots
+(per-slot = `-c` / N), and llama.cpp does **not** share a common system-prompt prefix across slots,
+each slot holds its own copy. So agent count is bounded by `(VRAM - weights) / per-agent-KV`.
+
+Measured on the dual-V100 (Qwen3.6 35B-A3B IQ4_XS, `-sm tensor -ts 1/1`, KV bytes/token = both
+K+V; weights+overhead ≈ 18.7 GB, leaving ~13 GB for KV; re-measure with `bench-kv-fit.ps1`):
+
+| KV   | bytes/token | total KV tokens | uniform fleet @128k | @32k |
+|------|------|------|------|------|
+| f16  | ~22.5 KB | ~610k  | ~4–5 | ~18 |
+| q8_0 | ~17.0 KB | ~800k  | ~6   | ~25 |
+| q4_0 | ~11.9 KB | ~1.15M | ~9   | ~35 |
+
+q4_0 saves ~30% per token over q8_0 (not 50% — part of the per-token cost is unquantizable compute
+buffer), and ~halves it vs f16. Two limits bite before the @32k VRAM ceiling: (1) one `llama-server`
+loads one weights copy, so `--parallel` gives N **equal** slots and you can't run a second instance
+for a bigger primary (weights would double, >32 GB) — one box serves a *uniform* fleet, a
+"big-primary + smaller-subagents" mix needs the primary on its own machine; (2) decode throughput
+caps the practically useful fleet at ~6–8 agents (see §5), below what VRAM allows.
 
 ## 5. End-to-end serving numbers
 

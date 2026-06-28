@@ -14,6 +14,7 @@ if "%BIN_DIR%"=="" set BIN_DIR=%~dp0bin
 if "%MODEL%"=="" set MODEL=%~dp0models\gemma-4-26B-A4B-qat\gemma-4-26B_q4_0-it.gguf
 if "%PORT%"=="" set PORT=8011
 if "%CTX%"=="" set CTX=32768
+if "%KV%"=="" set KV=q8_0
 if "%THREADS%"=="" set THREADS=6
 
 set CUDA_BIN=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\bin
@@ -40,7 +41,7 @@ echo serving gemma4 ctx=%CTX% port=%PORT%
   --host 0.0.0.0 --port %PORT% ^
   -ngl 99 -fa 1 ^
   -b 2048 -ub 1024 ^
-  -ctk q8_0 -ctv q8_0 ^
+  -ctk %KV% -ctv %KV% ^
   -c %CTX% ^
   -t %THREADS% ^
   --parallel 1 --metrics ^

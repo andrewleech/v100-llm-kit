@@ -20,6 +20,7 @@ $Port    = if ($env:PORT)    { $env:PORT }    else { '8001' }
 $Ctx     = if ($env:CTX)     { $env:CTX }     else { '131072' }
 $Threads = if ($env:THREADS) { $env:THREADS } else { '12' }
 $Cram    = if ($env:CRAM)    { $env:CRAM }    else { '16384' }
+$Kv      = if ($env:KV)      { $env:KV }      else { 'q8_0' }
 
 $cudaBin = 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\bin'
 if (Test-Path (Join-Path $cudaBin 'cudart64_12.dll')) { $env:PATH = "$cudaBin;$env:PATH" }
@@ -46,7 +47,7 @@ Write-Host "serving qwen3 ctx=$Ctx port=$Port"
     -ngl 99 -fa on `
     -b 2048 -ub 2048 `
     --fit --fit-margin 1664 `
-    -ctk q8_0 -ctv q8_0 -ctkd q8_0 -ctvd q8_0 `
+    -ctk $Kv -ctv $Kv -ctkd $Kv -ctvd $Kv `
     -cram $Cram `
     --spec-type mtp:n_max=3,p_min=0.75 `
     -c $Ctx `

@@ -15,6 +15,7 @@ if "%BIN_DIR%"=="" set BIN_DIR=%~dp0bin
 if "%MODEL%"=="" set MODEL=%~dp0models\qwen3.6-35b-a3b-MTP-GGUF\Qwen3.6-35B-A3B-IQ4_XS-4.19bpw.gguf
 if "%PORT%"=="" set PORT=8001
 if "%CTX%"=="" set CTX=131072
+if "%KV%"=="" set KV=q8_0
 if "%THREADS%"=="" set THREADS=12
 if "%CRAM%"=="" set CRAM=16384
 
@@ -43,7 +44,7 @@ echo serving qwen3 ctx=%CTX% port=%PORT%
   -ngl 99 -fa on ^
   -b 2048 -ub 2048 ^
   --fit --fit-margin 1664 ^
-  -ctk q8_0 -ctv q8_0 -ctkd q8_0 -ctvd q8_0 ^
+  -ctk %KV% -ctv %KV% -ctkd %KV% -ctvd %KV% ^
   -cram %CRAM% ^
   --spec-type mtp:n_max=3,p_min=0.75 ^
   -c %CTX% ^

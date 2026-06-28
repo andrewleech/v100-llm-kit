@@ -16,6 +16,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="${BIN_DIR:-$HERE/bin}"
 MODEL="${MODEL:-$HERE/models/qwen3.6-35b-a3b-MTP-GGUF/Qwen3.6-35B-A3B-IQ4_XS-4.19bpw.gguf}"
 PORT="${PORT:-8001}"
+KV="${KV:-q8_0}"
 CTX=131072
 
 ARGS=()
@@ -54,7 +55,7 @@ exec "$BIN_DIR/llama-server" \
   -ngl 99 -fa on \
   -b 2048 -ub 2048 \
   --fit --fit-margin "$MARGIN" \
-  -ctk q8_0 -ctv q8_0 -ctkd q8_0 -ctvd q8_0 \
+  -ctk "$KV" -ctv "$KV" -ctkd "$KV" -ctvd "$KV" \
   -cram "${CRAM:-16384}" \
   --spec-type mtp:n_max=3,p_min=0.75 \
   -c "$CTX" \

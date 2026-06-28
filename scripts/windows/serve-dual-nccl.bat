@@ -22,6 +22,7 @@ if "%MODEL%"=="" set MODEL=%~dp0models\qwen3.6-35b-a3b-MTP-GGUF\Qwen3.6-35B-A3B-
 if "%PORT%"=="" set PORT=8011
 if "%CTX%"=="" set CTX=32768
 if "%PARALLEL%"=="" set PARALLEL=8
+if "%KV%"=="" set KV=q8_0
 if "%THREADS%"=="" set THREADS=12
 if "%ALLREDUCE%"=="" set ALLREDUCE=nccl
 
@@ -50,7 +51,7 @@ echo serving %MODEL% across 2 GPUs: -sm tensor, allreduce=%ALLREDUCE%, parallel=
   -ngl 99 -fa 1 ^
   -sm tensor -ts 1/1 ^
   -b 2048 -ub 512 ^
-  -ctk q8_0 -ctv q8_0 ^
+  -ctk %KV% -ctv %KV% ^
   -c %CTX% ^
   -t %THREADS% ^
   --parallel %PARALLEL% --cont-batching --metrics ^

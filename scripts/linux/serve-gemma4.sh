@@ -19,6 +19,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="${BIN_DIR:-$HERE/bin}"
 MODEL="${MODEL:-$HERE/models/gemma-4-26B-A4B-qat/gemma-4-26B_q4_0-it.gguf}"
 PORT="${PORT:-8011}"
+KV="${KV:-q8_0}"
 CTX=32768
 
 ARGS=()
@@ -52,7 +53,7 @@ exec "$BIN_DIR/llama-server" \
   --host 0.0.0.0 --port "$PORT" \
   -ngl 99 -fa 1 \
   -b 2048 -ub 1024 \
-  -ctk q8_0 -ctv q8_0 \
+  -ctk "$KV" -ctv "$KV" \
   -c "$CTX" \
   -t "${THREADS:-6}" \
   --parallel 1 --metrics \
