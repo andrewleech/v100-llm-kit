@@ -58,7 +58,7 @@ echo serving %MODEL% across 2 GPUs: -sm tensor, allreduce=%ALLREDUCE%, parallel=
   -sm tensor -ts 1/1 ^
   -b 2048 -ub 512 ^
   -ctk %KV% -ctv %KV% ^
-  -c %CTX% ^
+  -c %CTX% --kv-unified ^
   -t %THREADS% ^
   --parallel %PARALLEL% --cont-batching --metrics ^
   %*

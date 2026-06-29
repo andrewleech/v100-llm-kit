@@ -44,7 +44,7 @@ Write-Host "serving across 2 GPUs: -sm tensor allreduce=$AllReduce parallel=$Par
     -sm tensor -ts 1/1 `
     -b 2048 -ub 512 `
     -ctk $Kv -ctv $Kv `
-    -c $Ctx `
+    -c $Ctx --kv-unified `
     -t $Threads `
     --parallel $Parallel --cont-batching --metrics `
     @args

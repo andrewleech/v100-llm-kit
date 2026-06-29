@@ -20,3 +20,7 @@ build/*.log
 __pycache__/
 *.pyc
 .DS_Store
+
+# local dev planning (WIP, not shipped)
+dev-notes/
+llama.log

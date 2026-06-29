@@ -22,6 +22,14 @@ No NCCL needed for this, `-sm layer` is a pipeline split with no per-layer all-r
 matters for the `-sm tensor` concurrency path below). Measured with upstream llama.cpp, both GPUs
 visible, `-sm layer -ts 1/1 -ngl 99 -fa on -c 32768` and q8_0 KV, the rest as `serve-qwen3.bat`.
 
+> **Recommended single-box quality serve:** `scripts/windows/serve-q6-resident.bat`
+> (`.ps1`, and `scripts/linux/serve-q6-resident.sh`) runs the Q6_K weights (~29 GB) fully
+> resident across both cards on upstream llama.cpp — `-sm layer -ts 1/1 --kv-unified
+> --cont-batching --parallel 4`, ~80 tok/s decode. It passes **`--kv-unified`**, which is
+> **required for the cross-slot shared-prefix feature** (M1): without it each slot keeps its
+> own KV and the shared system-prompt prefix is not reused across slots. The `-sm tensor`
+> NCCL path below also passes `--kv-unified` for the same reason.
+
 ## 1. Hardware / driver
 
 - The dual card needs the x16 slot set to **PCIe bifurcation x8/x8** in BIOS (+ Above 4G Decoding).

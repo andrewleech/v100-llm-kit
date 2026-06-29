@@ -143,6 +143,69 @@ all-reduce is otherwise fine. NCCL confirms the transport in its log:
 Single-stream still favours one card for a model that fits 16 GB (Gemma: single 99 > tensor 76 tok/s),
 the dual-card NCCL path is specifically for **concurrency** and for models that need both cards (Qwen3 35B).
 
+### KV cache quantization (bytes/token)
+
+Qwen3.6 35B-A3B IQ4_XS on the dual card, KV bytes/token derived from VRAM deltas (allocate a known
+context, read the GPU memory change, divide). All three quant levels fit 262k on two cards even at f16:
+
+| KV quant | bytes/token | vs q8_0 |
+|---|---|---|
+| f16 | ~22.5 KB | +32% |
+| q8_0 (default) | ~17.0 KB | baseline |
+| q4_0 | ~11.9 KB | −30% |
+
+q4_0 saves **~30%** over q8_0, not the ~50% the bit-width alone implies, part of the per-token
+footprint is a non-quantizable compute buffer that doesn't shrink with KV bits. There's enough VRAM
+headroom here that q8_0 is the sensible default, q4_0 is only worth it if you want to push context
+further on a single card.
+
+### Concurrency sweep (decode ceiling)
+
+Qwen3.6 35B-A3B IQ4_XS, `-sm tensor`, internal all-reduce, 256-token generations, **short prompts**
+(this isolates the decode ceiling, prefill is negligible here):
+
+| streams | aggregate t/s | per-stream t/s | p50 latency |
+|---|---|---|---|
+| 1 | 62.7 | 62.7 | 4.3 s |
+| 4 | 125.1 | 31.3 | 6.4 s |
+| 8 | 211.4 | 26.4 | 8.0 s |
+| 16 | 338.1 | 21.1 | 13.0 s |
+
+Aggregate throughput scales ~5.4× from 1 to 16 streams, per-stream decode degrades gracefully
+(62.7 → 21.1 tok/s). **Caveat:** these are short prompts and so an upper bound on decode. Real
+agent traffic (Claude Code / OpenClaw) carries a ~24k-token system prompt and is prefill-heavy,
+which pulls aggregate down, the prefill-heavy run in [docs/07-dual-nvlink.md](07-dual-nvlink.md) §5
+measured 47 / 122 / 155 / 174 tok/s aggregate at the same stream counts.
+
+### Expert offload vs resident (Q6_K, the production decision)
+
+Two ways to run the higher-quality Q6_K quant of Qwen3.6 35B-A3B on the dual card, MoE expert offload
+to CPU RAM (ik_llama.cpp) versus fully resident on GPU (upstream llama.cpp). All single-stream,
+`-ts 1,1`, 24k-token cold prefill matching the agent system prompt:
+
+| build / mode | placement | decode t/s | 24k cold prefill |
+|---|---|---|---|
+| ik_llama.cpp, `--fit -sm layer`, Q6_K (UD) | ~3 GB to CPU | 61.7 | 25.6 s |
+| ik_llama.cpp, `--fit -sm layer`, Q8_0 | ~11 GB to CPU | 39.9 | 49.9 s |
+| **upstream llama.cpp, `-sm layer --kv-unified --fit`, Q6_K** | **~29.3 GB resident** | **80.5** | **11.0 s** |
+
+The resident Q6_K path is the **recommended production serve**: a quality tier above the IQ4_XS in
+the tables above, *and* faster decode than it (80.5 vs 62.7 tok/s), with a 24k cold prefill of 11.0 s
+versus Qwen's ~2.5 min single-card-offload figure. It fits because this hybrid model carries KV on
+only ~10 of its 40 layers, so the KV footprint is small and the weights (~29.3 GB) sit under the
+32 GB of two cards. Offloading experts to CPU (the ik path) only makes sense when the weights won't
+fit, here they do, and keeping them resident roughly doubles decode (80.5 vs 39.9 for Q8_0) and cuts
+prefill 4–5×.
+
+### Cross-slot shared-prefix prefill (M1 branch)
+
+On the upstream llama.cpp M1 branch, concurrent slots can share a common prompt prefix. In a fan-out
+where an active primary agent and N concurrent subagents all share one ~24k-token system prompt, the
+subagents `seq_cp`-share the primary's already-computed prefix (zero-copy) and skip prefill entirely,
+**1× prefill instead of N×**, with correct output. This needs `--kv-unified`. For multi-agent setups
+that all boot from the same system prompt it removes the per-subagent prefill cost, which is the
+dominant cost in the prefill-heavy concurrency numbers above.
+
 ### TCC vs MCDM (the recommended-mode delta)
 
 Clean single-card A/B, same build, same q8_0 KV, same flags, the driver mode the only variable
